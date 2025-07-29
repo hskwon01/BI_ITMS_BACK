@@ -3,6 +3,9 @@ const router = express.Router();
 const { approveUserById } = require('../models/userModel');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const pool = require('../config/db');
+const upload = require('../middleware/upload');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 // 사용자 승인 또는 승인 취소
 router.patch('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
@@ -18,6 +21,37 @@ router.patch('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
     res.status(500).json({ error: '승인 처리 중 오류 발생' });
   }
 });
+
+// Cloudinary 이미지 업로드 - 티켓 등록 시
+router.post('/upload/ticket', upload.single('file'), async (req, res) => {
+  try {
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'ticket_files'
+    });
+
+    // 임시 파일 삭제
+    fs.unlinkSync(req.file.path);
+    res.json({ public_id: result.public_id, url: result.secure_url });
+  } catch (err) {
+    res.status(500).json({ error: '이미지 업로드 실패' });
+  }
+});
+
+// Cloudinary 이미지 업로드 - 댓글 등록 시
+router.post('/upload/reply', upload.single('file'), async (req, res) => {
+  try {
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'ticket_reply_files'
+    });
+
+    // 임시 파일 삭제
+    fs.unlinkSync(req.file.path);
+    res.json({ public_id: result.public_id, url: result.secure_url });
+  } catch (err) {
+    res.status(500).json({ error: '이미지 업로드 실패' });
+  }
+});
+
 
 // 모든 사용자 조회 (관리자만)
 router.get('/', verifyToken, requireAdmin, async (req, res) => {

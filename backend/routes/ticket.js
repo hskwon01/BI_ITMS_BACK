@@ -16,20 +16,37 @@ const fs = require('fs');
 const { createTicket } = require('../models/ticketModel');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getRepliesByTicketId, addReply } = require('../models/replyModel');
+const cloudinary = require('../config/cloudinary');
 
 // 티켓 첨부파일 삭제
-router.delete('/files/ticket/:filename', verifyToken, requireAdmin, async (req, res) => {
-  const { filename } = req.params;
+router.delete('/files/ticket/:ticket_files_id', verifyToken, requireAdmin, async (req, res) => {
+  const { ticket_files_id } = req.params;
 
   try {
-    // 1. DB에서 삭제
-    await pool.query(`DELETE FROM ticket_files WHERE filename = $1`, [filename]);
+    // 1. 파일 정보 조회 (public_id 포함)
+    const fileResult = await pool.query(
+      `SELECT public_id FROM ticket_files WHERE id = $1`,
+      [ticket_files_id]
+    );
 
-    // 2. 실제 파일 삭제
-    const filePath = path.join(__dirname, '..', 'uploads', filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (fileResult.rows.length === 0) {
+      return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     }
+
+    const file = fileResult.rows[0];
+
+    // 2. Cloudinary에서 삭제
+    if (file.public_id) {
+      try {
+        await cloudinary.uploader.destroy(file.public_id);
+      } catch (cloudinaryErr) {
+        console.error('Cloudinary 삭제 실패:', cloudinaryErr);
+        // Cloudinary 삭제 실패해도 DB는 삭제 진행
+      }
+    }
+
+    // 3. DB에서 삭제
+    await pool.query(`DELETE FROM ticket_files WHERE id = $1`, [ticket_files_id]);
 
     res.json({ message: '파일 삭제 완료' });
   } catch (err) {
@@ -39,19 +56,46 @@ router.delete('/files/ticket/:filename', verifyToken, requireAdmin, async (req, 
 });
 
 // 댓글 첨부파일 삭제
-router.delete('/files/reply/:filename', verifyToken, requireAdmin, async (req, res) => {
-  const { filename } = req.params;
+router.delete('/files/reply/:ticket_reply_files_id', verifyToken, async (req, res) => {
+  const { ticket_reply_files_id } = req.params;
+  const userId = req.user.id;
 
   try {
-    await pool.query(`DELETE FROM ticket_reply_files WHERE filename = $1`, [filename]);
+    // 1. 파일 정보 조회 (public_id 포함) 및 댓글 작성자 확인
+    const fileCheck = await pool.query(`
+      SELECT trf.public_id, r.author_id, r.id as reply_id 
+      FROM ticket_reply_files trf
+      JOIN ticket_replies r ON trf.reply_id = r.id
+      WHERE trf.id = $1
+    `, [ticket_reply_files_id]);
 
-    const filePath = path.join(__dirname, '..', 'uploads', filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (fileCheck.rows.length === 0) {
+      return res.status(404).json({ error: '파일을 찾을 수 없습니다.' });
     }
+
+    const file = fileCheck.rows[0];
+    
+    // 2. 권한 확인 (댓글 작성자 또는 관리자만 삭제 가능)
+    if (file.author_id !== userId && req.user.role !== 'admin') {
+      return res.status(403).json({ error: '삭제 권한이 없습니다.' });
+    }
+
+    // 3. Cloudinary에서 삭제
+    if (file.public_id) {
+      try {
+        await cloudinary.uploader.destroy(file.public_id);
+      } catch (cloudinaryErr) {
+        console.error('Cloudinary 삭제 실패:', cloudinaryErr);
+        // Cloudinary 삭제 실패해도 DB는 삭제 진행
+      }
+    }
+
+    // 4. DB에서 삭제
+    await pool.query(`DELETE FROM ticket_reply_files WHERE id = $1`, [ticket_reply_files_id]);
 
     res.json({ message: '댓글 파일 삭제 완료' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: '댓글 파일 삭제 실패' });
   }
 });
@@ -202,12 +246,13 @@ router.get('/:id', verifyToken, async (req, res) => {
   try {
     // 1. 티켓 정보
     const ticketRes = await pool.query('SELECT * FROM tickets WHERE id = $1', [ticketId]);
+
     if (ticketRes.rows.length === 0) return res.status(404).json({ message: '티켓 없음' });
     const ticket = ticketRes.rows[0];
 
     // ✅ 2. 티켓 첨부파일 정보 추가
     const fileRes = await pool.query(
-      `SELECT filename, originalname FROM ticket_files WHERE ticket_id = $1`,
+      `SELECT id as ticket_files_id, url, originalname, public_id FROM ticket_files WHERE ticket_id = $1`,
       [ticketId]
     );
     ticket.files = fileRes.rows;
@@ -240,12 +285,12 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     const replyId = replyRes.rows[0].id;
 
     // 파일 저장
-    for (const file of req.files) {
+    for (const file of req.body.files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
-        `INSERT INTO ticket_reply_files (reply_id, filename, originalname)
-         VALUES ($1, $2, $3)`,
-        [replyId, file.filename, fixedOriginalName]
+        `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id)
+         VALUES ($1, $2, $3, $4)`,
+        [replyId, file.url, fixedOriginalName, file.public_id]
       );
     }
 
@@ -322,13 +367,13 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     const ticketId = result.rows[0].id;
 
     // 파일 정보 저장
-    const files = req.files;
+    const files = req.body.files;
     for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
-        `INSERT INTO ticket_files (ticket_id, filename, originalname)
-         VALUES ($1, $2, $3)`,
-        [ticketId, file.filename, fixedOriginalName]
+        `INSERT INTO ticket_files (ticket_id, url, originalname, public_id)
+         VALUES ($1, $2, $3, $4)`,
+        [ticketId, file.url, fixedOriginalName, file.public_id]
       );
     }
 

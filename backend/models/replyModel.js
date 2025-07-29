@@ -14,7 +14,7 @@ const getRepliesByTicketId = async (ticket_id) => {
   // 각 댓글에 첨부파일 추가
   for (const reply of replies) {
     const filesRes = await pool.query(`
-      SELECT filename, originalname FROM ticket_reply_files
+      SELECT id as ticket_reply_files_id, url, originalname FROM ticket_reply_files
       WHERE reply_id = $1
     `, [reply.id]);
     reply.files = filesRes.rows;
