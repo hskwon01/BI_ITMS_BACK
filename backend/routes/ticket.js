@@ -310,16 +310,21 @@ router.delete('/:ticketId/replies/:replyId', verifyToken, async (req, res) => {
 
 // 티켓 생성
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
-  const { title, description, urgency, product } = req.body;
+  const { title, description, urgency, product, component, sw_version, os } = req.body;
   const customer_id = req.user.id;
 
   try {
-    const result = await pool.query(
-      `INSERT INTO tickets (title, description, urgency, product, customer_id)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [title, description, urgency, product, customer_id]
-    );
-    const ticketId = result.rows[0].id;
+    const newTicket = await createTicket({
+      title,
+      description,
+      urgency,
+      product,
+      customer_id,
+      component,
+      sw_version,
+      os
+    });
+    const ticketId = newTicket.id;
 
     // 파일 정보 저장
     const files = req.files;
