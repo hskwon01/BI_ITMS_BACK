@@ -286,7 +286,7 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     const replyId = replyRes.rows[0].id;
 
     // 파일 저장
-    for (const file of req.body.files) {
+    for (const file of req.files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
         `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id)
