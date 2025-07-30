@@ -398,7 +398,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
         component: component,
         sw_version: sw_version,
         os: os,
-        createdAt: newTicket.created_at,
+        createdAt: new Date(newTicket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
         files: files
       };
       

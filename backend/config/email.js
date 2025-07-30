@@ -127,7 +127,7 @@ const sendTicketNotificationToAdmin = async (ticketData) => {
     const htmlContent = `
     <!-- 프리헤더 -->
     <div style="display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
-      고객 ID: ${ticketData.customer_name} / 티켓 ID: #${ticketData.ticketId} / 제목: ${ticketData.title} / 등록 시간: ${new Date(ticketData.createdAt).toLocaleString('ko-KR')}
+      고객 ID: ${ticketData.customer_name} / 티켓 ID: #${ticketData.ticketId} / 제목: ${ticketData.title} / 등록 시간: ${ticketData.createdAt}
       ${'&zwnj;'.repeat(500)}
     </div>
     
@@ -161,7 +161,7 @@ const sendTicketNotificationToAdmin = async (ticketData) => {
               </tr>
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">등록 시간:</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${new Date(ticketData.createdAt).toLocaleString('ko-KR')}</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.createdAt}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">관련 제품:</td>
