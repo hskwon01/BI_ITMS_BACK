@@ -50,38 +50,26 @@ router.post('/register', async (req, res) => {
 // 로그인
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
-  console.log(`Login attempt for email: ${email}`);
   try {
     const user = await getUserByEmail(email);
-    console.log('User found by email:', user ? user.email : 'None');
 
     if (!user) return res.status(400).json({ message: '사용자를 찾을 수 없습니다.' });
 
     if (!user.is_approved) return res.status(403).json({ message: '관리자 승인이 필요합니다.' });
 
-    console.log('Comparing passwords:');
-    console.log('  Input password (first 5 chars): ', password ? password.substring(0, 5) + '...' : '[empty]');
-    console.log('  Stored password (first 5 chars): ', user.password ? user.password.substring(0, 5) + '...' : '[empty]');
-
     const valid = await bcrypt.compare(password, user.password);
-    console.log('Password comparison result:', valid);
 
     if (!valid) return res.status(401).json({ message: '비밀번호가 일치하지 않습니다.' });
 
     if (!JWT_SECRET) {
-      console.error('JWT_SECRET is not defined in environment variables!');
       throw new Error('Server configuration error: JWT_SECRET is missing.');
     }
-
-    console.log('Attempting to sign JWT token...');
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },  // role 추가!
       JWT_SECRET,
       { expiresIn: '2h' }
     );
-    console.log('JWT token signed successfully.');
 
-    console.log('Sending successful login response.');
     res.json({ token });
   } catch (err) {
     console.error('로그인 처리 중 오류 발생:', err.message || err);
@@ -136,7 +124,6 @@ router.post('/verify-email', async (req, res) => {
   try {
     // 인증 코드 확인
     const storedData = verificationCodes.get(email);
-    console.log(storedData);
     
     if (!storedData) {
       return res.status(400).json({ message: '인증 코드가 만료되었습니다. 다시 발송해주세요.' });
