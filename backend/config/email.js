@@ -111,7 +111,47 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
   }
 };
 
-// 관리자에게 새 티켓 알림 메일 보내기
+
+// 사용자에게 회원가입 승인 이메일 발송 함수
+const sendApprovalEmail = async (to, name) => {
+  const mailOptions = {
+    from: `"ITMS 지원팀" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: '계정 승인 완료 안내',
+    html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      <h2 style="color: #2d3652; text-align: center;">ITMS 계정 승인 완료</h2>
+      <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+          안녕하세요, <strong>${name}</strong>님!
+        </p>
+        <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
+          회원님의 계정이 <strong style="color: #7c83fd;">정상적으로 승인</strong>되었습니다.
+          <br />
+          이제 <strong>ITMS 시스템</strong>을 자유롭게 이용하실 수 있습니다.
+        </p>
+        <p style="color: #7b8190; font-size: 14px; margin-top: 20px;">
+          문제가 있거나 도움이 필요하시면 언제든지 ITMS 지원팀에 문의해 주세요.
+        </p>
+      </div>
+      <p style="color: #7b8190; font-size: 12px; text-align: center;">
+        © 2025 ITMS. All rights reserved.
+      </p>
+    </div>
+  `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Send approval email sending error:', error);
+    return false;
+  }
+}
+
+
+// 관리자에게 새 티켓 알림 메일 발송 함수
 const sendTicketNotificationToAdmin = async (ticketData) => {
   try {
     const adminEmail = process.env.EMAIL_USER;
@@ -263,5 +303,6 @@ module.exports = {
   generateVerificationCode,
   sendVerificationEmail,
   sendAdminApprovalNotification,
+  sendApprovalEmail,
   sendTicketNotificationToAdmin
 }; 

@@ -6,6 +6,24 @@ const pool = require('../config/db');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
+const { sendApprovalEmail } = require('../config/email');
+
+// 사용자에게 회원가입 승인 이메일 전송
+router.post('/:id/send-approval-email', async (req, res) => {
+  const userId = req.params.id;
+
+  try {
+    const result = await pool.query(`SELECT email, name FROM users WHERE id = $1`, [userId]);
+    const user = result.rows[0];
+    if (!user) return res.status(404).json({ error: '사용자 없음' });
+
+    await sendApprovalEmail(user.email, user.name);
+    res.json({ message: '이메일 전송 완료' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '이메일 전송 실패' });
+  }
+});
 
 // 사용자 정보 수정 (본인 또는 관리자만)
 router.patch('/:id', verifyToken, async (req, res) => {
