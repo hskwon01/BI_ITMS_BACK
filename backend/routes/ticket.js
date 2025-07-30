@@ -17,6 +17,7 @@ const { createTicket } = require('../models/ticketModel');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { getRepliesByTicketId, addReply } = require('../models/replyModel');
 const cloudinary = require('../config/cloudinary');
+const { sendTicketNotificationToAdmin } = require('../config/email');
 
 // 티켓 첨부파일 삭제
 router.delete('/files/ticket/:ticket_files_id', verifyToken, requireAdmin, async (req, res) => {
@@ -357,6 +358,9 @@ router.delete('/:ticketId/replies/:replyId', verifyToken, async (req, res) => {
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
   const { title, description, urgency, product, component, sw_version, os } = req.body;
   const customer_id = req.user.id;
+  // customer_name 조회  
+  const result = await pool.query(`SELECT name FROM users WHERE id = $1`, [customer_id]);
+  const customer_name = result.rows[0]?.name
 
   try {
     const newTicket = await createTicket({
@@ -372,7 +376,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     const ticketId = newTicket.id;
 
     // 파일 정보 저장
-    const files = req.body.files;
+    const files = req.body.files || [];
     for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
@@ -380,6 +384,29 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
          VALUES ($1, $2, $3, $4)`,
         [ticketId, file.url, fixedOriginalName, file.public_id]
       );
+    }
+
+    // 관리자에게 알림 메일 발송
+    try {
+      const ticketData = {
+        customer_name: customer_name,
+        ticketId: ticketId,
+        title: title,
+        description: description,
+        urgency: urgency,
+        product: product,
+        component: component,
+        sw_version: sw_version,
+        os: os,
+        createdAt: newTicket.created_at,
+        files: files
+      };
+      
+      await sendTicketNotificationToAdmin(ticketData);
+      console.log('관리자 티켓 알림 메일 발송 완료');
+    } catch (emailError) {
+      console.error('관리자 티켓 알림 메일 발송 실패:', emailError);
+      // 메일 발송 실패해도 티켓 생성은 성공으로 처리
     }
 
     res.status(201).json({ message: '티켓 생성 완료', ticket_id: ticketId });

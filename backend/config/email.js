@@ -111,8 +111,157 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
   }
 };
 
+// 관리자에게 새 티켓 알림 메일 보내기
+const sendTicketNotificationToAdmin = async (ticketData) => {
+  try {
+    const adminEmail = process.env.EMAIL_USER;
+    
+    if (!adminEmail) {
+      throw new Error('관리자 이메일이 설정되지 않았습니다.');
+    }
+
+    // 이메일 제목
+    const subject = `[BI ITMS] 새로운 기술 지원 티켓 - ${ticketData.urgency} 긴급도`;
+
+    // 이메일 본문 HTML
+    const htmlContent = `
+    <!-- 프리헤더 -->
+    <div style="display: none; font-size: 1px; color: #ffffff; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">
+      고객 ID: ${ticketData.customer_name} / 티켓 ID: #${ticketData.ticketId} / 제목: ${ticketData.title} / 등록 시간: ${new Date(ticketData.createdAt).toLocaleString('ko-KR')}
+      ${'&zwnj;'.repeat(500)}
+    </div>
+    
+    <!-- 본문 시작 -->
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d3652; text-align: center;">새로운 기술 지원 티켓 알림</h2>
+        <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+          </p>
+          
+          <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0; margin-bottom: 20px;">
+            <h3 style="color: #2d3652; margin: 0 0 15px 0;">티켓 정보</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">고객 ID:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.customer_name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">티켓 ID:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">#${ticketData.ticketId}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">제목:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.title}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">긴급도:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">
+                  <span style="background-color: ${getUrgencyColor(ticketData.urgency)}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${ticketData.urgency}</span>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">등록 시간:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${new Date(ticketData.createdAt).toLocaleString('ko-KR')}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">관련 제품:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.product || '미지정'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">Component:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.component || '미지정'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">S/W Version:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.sw_version || '미지정'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: 600; color: #4a5568;">OS:</td>
+                <td style="padding: 8px 0; color: #2d3652;">${ticketData.os || '미지정'}</td>
+              </tr>
+            </table>
+          </div>
+          
+          <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0; margin-bottom: 20px;">
+            <h3 style="color: #2d3652; margin: 0 0 15px 0;">상세 내용</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 3px solid #dee2e6; white-space: pre-wrap; color: #495057; font-size: 14px; line-height: 1.6;">${ticketData.description}</div>
+          </div>
+          
+          ${ticketData.files && ticketData.files.length > 0 ? `
+          <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0; margin-bottom: 20px;">
+            <h3 style="color: #2d3652; margin: 0 0 15px 0;">첨부 파일 (${ticketData.files.length}개)</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 6px;">
+              ${ticketData.files.map(file => `
+                <div style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                  <span style="color: #6c757d;">📄</span>
+                  <a href="${file.url}" target="_blank" style="color: #007bff; text-decoration: none; font-weight: 500;">${file.originalname}</a>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          ` : ''}
+          
+          <div style="background: #e6ffe6; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #38a169;">
+            <p style="color: #2d3652; font-size: 14px; margin: 0;">
+              <strong>관리자 페이지</strong>에서 티켓을 <strong>확인하고 처리</strong>할 수 있습니다.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/tickets/${ticketData.ticketId}" 
+               style="background-color: #2d3652; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                티켓 상세보기
+            </a>
+          </div>
+        </div>
+        <p style="color: #7b8190; font-size: 12px; text-align: center;">
+          © 2025 ITMS. All rights reserved.
+        </p>
+      </div>
+    `;
+
+    // 이메일 전송
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: adminEmail,
+      subject: subject,
+      html: htmlContent,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('관리자 알림 메일 전송 성공:', result.messageId);
+    return result;
+
+  } catch (error) {
+    console.error('관리자 알림 메일 전송 실패:', error);
+    throw error;
+  }
+};
+
+// 긴급도에 따른 CSS 클래스 반환
+const getUrgencyClass = (urgency) => {
+  switch (urgency) {
+    case '높음': return 'urgency-high';
+    case '보통': return 'urgency-medium';
+    case '낮음': return 'urgency-low';
+    default: return '';
+  }
+};
+
+// 긴급도에 따른 색상 반환
+const getUrgencyColor = (urgency) => {
+  switch (urgency) {
+    case '높음': return '#dc3545';
+    case '보통': return '#ffc107';
+    case '낮음': return '#28a745';
+    default: return '#6c757d';
+  }
+};
+
+
 module.exports = {
   generateVerificationCode,
   sendVerificationEmail,
-  sendAdminApprovalNotification
+  sendAdminApprovalNotification,
+  sendTicketNotificationToAdmin
 }; 
