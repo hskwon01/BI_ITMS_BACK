@@ -209,7 +209,7 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   const { status, urgency, keyword } = req.query;
 
   let query = `
-    SELECT t.*, u.email AS customer_email, u.company_name
+    SELECT t.*, u.email AS customer_email, u.company_name, u.name
     FROM tickets t
     JOIN users u ON t.customer_id = u.id
     WHERE 1=1`;
