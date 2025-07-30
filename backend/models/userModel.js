@@ -9,7 +9,10 @@ const createUser = async (email, hashedPassword, name, company) => {
 };
 
 const getUserByEmail = async (email) => {
-  const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  const lowercasedEmail = email.toLowerCase(); // 이메일을 소문자로 변환
+  console.log(`Attempting to find user with email: ${lowercasedEmail}`);
+  const result = await pool.query('SELECT * FROM users WHERE email = $1', [lowercasedEmail]);
+  console.log('Query result rows:', result.rows);
   return result.rows[0];
 };
 
