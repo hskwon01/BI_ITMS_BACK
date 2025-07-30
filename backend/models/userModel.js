@@ -60,10 +60,16 @@ const updateUserById = async (id, updates) => {
   return result.rows[0];
 };
 
+const deleteUserById = async (id) => {
+  const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id', [id]);
+  return result.rows[0];
+};
+
 module.exports = {
   createUser,
   getUserByEmail,
   approveUserById,
   getAdminEmails,
   updateUserById,
+  deleteUserById,
 };
