@@ -152,5 +152,21 @@ router.put('/profile', verifyToken, async (req, res) => {
   }
 });
 
+// 계정 탈퇴 (본인만)
+router.delete('/me', verifyToken, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const deletedUser = await deleteUserById(userId);
+    if (!deletedUser) {
+      return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+    }
+    res.json({ message: '계정이 성공적으로 삭제되었습니다.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '계정 탈퇴 중 오류 발생' });
+  }
+});
+
 module.exports = router;
 
