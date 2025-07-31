@@ -356,7 +356,7 @@ router.delete('/:ticketId/replies/:replyId', verifyToken, async (req, res) => {
 
 // 티켓 생성
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
-  const { title, description, urgency, product, component, sw_version, os } = req.body;
+  const { title, description, urgency, product, platform, sw_version, os } = req.body;
   const customer_id = req.user.id;
   // customer_name 조회  
   const result = await pool.query(`SELECT name FROM users WHERE id = $1`, [customer_id]);
@@ -369,7 +369,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       urgency,
       product,
       customer_id,
-      component,
+      platform,
       sw_version,
       os
     });
@@ -395,7 +395,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
         description: description,
         urgency: urgency,
         product: product,
-        component: component,
+        platform: platform,
         sw_version: sw_version,
         os: os,
         createdAt: new Date(newTicket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
