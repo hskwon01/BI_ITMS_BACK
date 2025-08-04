@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
       throw new Error('Server configuration error: JWT_SECRET is missing.');
     }
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },  // role 추가!
+      { id: user.id, email: user.email, role: user.role, name: user.name },  // role, name 추가!
       JWT_SECRET,
       { expiresIn: '2h' }
     );
