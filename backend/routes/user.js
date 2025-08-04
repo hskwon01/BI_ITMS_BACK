@@ -1,15 +1,82 @@
 const express = require('express');
 const router = express.Router();
-const { approveUserById, updateUserById } = require('../models/userModel');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
+const bcrypt = require('bcrypt');
+const { approveUserById, updateUserById, deleteUserById } = require('../models/userModel');
+const { verifyToken, requireAdmin, requireTeam } = require('../middleware/auth');
 const pool = require('../config/db');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
 const { sendApprovalEmail } = require('../config/email');
 
+// 고객 목록만 조회 (관리자, 기술지원팀)
+router.get('/customers', verifyToken, requireTeam, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, email, name, company_name, is_approved, role FROM users WHERE role = 'customer' ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '고객 목록 조회 실패' });
+  }
+});
+
+// 팀 멤버(관리자, 기술지원팀) 목록 조회
+router.get('/team', verifyToken, requireTeam, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, email, name, role, is_approved FROM users WHERE role IN ('admin', 'itsm_team') ORDER BY created_at DESC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '팀 멤버 목록 조회 실패' });
+  }
+});
+
+// 담당자 목록 조회 (기술지원팀 및 관리자)
+router.get('/assignees', verifyToken, requireTeam, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, email FROM users WHERE role IN ('itsm_team', 'admin') ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '담당자 목록 조회 실패' });
+  }
+});
+
+// 새로운 팀 멤버 생성 (관리자만)
+router.post('/team', verifyToken, requireAdmin, async (req, res) => {
+  const { email, password, name, role } = req.body;
+
+  if (!['admin', 'itsm_team'].includes(role)) {
+    return res.status(400).json({ error: '잘못된 역할입니다.' });
+  }
+
+  try {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const newUser = await pool.query(
+      `INSERT INTO users (email, password, name, role, is_approved) VALUES ($1, $2, $3, $4, true) RETURNING id, email, name, role`,
+      [email, hashedPassword, name, role]
+    );
+
+    res.status(201).json(newUser.rows[0]);
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') { // Unique violation
+      return res.status(409).json({ error: '이미 사용중인 이메일입니다.' });
+    }
+    res.status(500).json({ error: '팀 멤버 생성 실패' });
+  }
+});
+
 // 사용자에게 회원가입 승인 이메일 전송
-router.post('/:id/send-approval-email', async (req, res) => {
+router.post('/:id/send-approval-email', verifyToken, requireAdmin, async (req, res) => {
   const userId = req.params.id;
 
   try {
@@ -30,7 +97,6 @@ router.patch('/:id', verifyToken, async (req, res) => {
   const userId = req.params.id;
   const updates = req.body;
 
-  // 로그인한 사용자가 본인이거나 관리자인지 확인
   if (req.user.id.toString() !== userId && req.user.role !== 'admin') {
     return res.status(403).json({ message: '권한이 없습니다.' });
   }
@@ -41,6 +107,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
 
     res.json({ message: '사용자 정보가 성공적으로 수정되었습니다.', user: updatedUser });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: '사용자 정보 수정 중 오류 발생' });
   }
 });
@@ -48,7 +115,7 @@ router.patch('/:id', verifyToken, async (req, res) => {
 // 사용자 승인 또는 승인 취소
 router.patch('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
   const userId = req.params.id;
-  const { approve } = req.body;  // true 또는 false
+  const { approve } = req.body;
 
   try {
     const updatedUser = await approveUserById(userId, approve);
@@ -56,6 +123,7 @@ router.patch('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
 
     res.json({ message: `사용자 ${approve ? '승인됨' : '승인 취소됨'}`, user: updatedUser });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: '승인 처리 중 오류 발생' });
   }
 });
@@ -66,11 +134,10 @@ router.post('/upload/ticket', upload.single('file'), async (req, res) => {
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'ticket_files'
     });
-
-    // 임시 파일 삭제
     fs.unlinkSync(req.file.path);
     res.json({ public_id: result.public_id, url: result.secure_url });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: '이미지 업로드 실패' });
   }
 });
@@ -81,28 +148,13 @@ router.post('/upload/reply', upload.single('file'), async (req, res) => {
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: 'ticket_reply_files'
     });
-
-    // 임시 파일 삭제
     fs.unlinkSync(req.file.path);
     res.json({ public_id: result.public_id, url: result.secure_url });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: '이미지 업로드 실패' });
   }
 });
-
-
-// 모든 사용자 조회 (관리자만)
-router.get('/', verifyToken, requireAdmin, async (req, res) => {
-  try {
-    const result = await pool.query('SELECT id, email, name, company_name, is_approved, role FROM users ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: '사용자 목록 조회 실패' });
-  }
-});
-
-
-const bcrypt = require('bcrypt');
 
 // 비밀번호 확인
 router.post('/verify-password', verifyToken, async (req, res) => {
@@ -139,7 +191,6 @@ router.put('/profile', verifyToken, async (req, res) => {
     let updatedUser;
 
     if (password) {
-      // 비밀번호 변경 로직
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password, salt);
       
@@ -150,7 +201,6 @@ router.put('/profile', verifyToken, async (req, res) => {
       updatedUser = result.rows[0];
 
     } else {
-      // 비밀번호 변경 없이 정보 수정
       const result = await pool.query(
         'UPDATE users SET name = $1, company_name = $2 WHERE id = $3 RETURNING id, email, name, company_name, role, is_approved',
         [name, company_name, userId]
@@ -187,4 +237,3 @@ router.delete('/me', verifyToken, async (req, res) => {
 });
 
 module.exports = router;
-
