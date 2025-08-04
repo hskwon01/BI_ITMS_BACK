@@ -76,6 +76,7 @@ router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async 
 // 댓글 첨부파일 삭제
 router.delete('/files/reply/:ticket_reply_files_id', verifyToken, async (req, res) => {
   const { ticket_reply_files_id } = req.params;
+  console.log('티켓 명!!!!!!!!!!!!!!!!!!!!', ticket_reply_files_id);
   const userId = req.user.id;
 
   try {
@@ -316,7 +317,7 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     const replyId = replyRes.rows[0].id;
 
     // 파일 저장
-    for (const file of req.files) {
+    for (const file of req.body.files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
         `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id)

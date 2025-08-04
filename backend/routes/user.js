@@ -7,6 +7,7 @@ const pool = require('../config/db');
 const upload = require('../middleware/upload');
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs');
+const path = require('path');
 const { sendApprovalEmail } = require('../config/email');
 
 // 고객 목록만 조회 (관리자, 기술지원팀)
@@ -131,28 +132,60 @@ router.patch('/:id/approve', verifyToken, requireAdmin, async (req, res) => {
 // Cloudinary 이미지 업로드 - 티켓 등록 시
 router.post('/upload/ticket', upload.single('file'), async (req, res) => {
   try {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'ticket_files'
+    const filePath = req.file.path;
+    const originalName = req.file.originalname;
+    const ext = path.extname(originalName).toLowerCase();
+
+    // 업로드 옵션 설정
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+    const uploadOptions = {
+      folder: 'ticket_files',
+      resource_type: isImage ? 'image' : 'raw',
+    };
+
+    const result = await cloudinary.uploader.upload(filePath, uploadOptions);
+    fs.unlinkSync(filePath); // 임시파일 삭제
+
+    res.json({
+      public_id: result.public_id,
+      url: result.secure_url
     });
-    fs.unlinkSync(req.file.path);
-    res.json({ public_id: result.public_id, url: result.secure_url });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '이미지 업로드 실패' });
+    res.status(500).json({ error: '파일 업로드 실패' });
   }
 });
 
 // Cloudinary 이미지 업로드 - 댓글 등록 시
 router.post('/upload/reply', upload.single('file'), async (req, res) => {
   try {
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'ticket_reply_files'
+    const filePath = req.file.path;
+    const originalName = req.file.originalname;
+    const ext = path.extname(originalName).toLowerCase();
+
+    console.log("이미지 업로등ㅇㅇㅇㅇㅇㅇㅇㅇㅇㅇ");
+
+    // 업로드 옵션 설정
+    const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext);
+    const uploadOptions = {
+      folder: 'ticket_reply_files',
+      resource_type: isImage ? 'image' : 'raw',
+    };
+
+    console.log("업로드 옵션!!!!!!!!!!", uploadOptions);
+
+    const result = await cloudinary.uploader.upload(filePath, uploadOptions);
+    fs.unlinkSync(filePath); // 임시파일 삭제
+
+    res.json({
+      public_id: result.public_id,
+      url: result.secure_url
     });
-    fs.unlinkSync(req.file.path);
-    res.json({ public_id: result.public_id, url: result.secure_url });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '이미지 업로드 실패' });
+    res.status(500).json({ error: '파일 업로드 실패' });
   }
 });
 
