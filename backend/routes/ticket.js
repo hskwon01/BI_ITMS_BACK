@@ -76,7 +76,6 @@ router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async 
 // 댓글 첨부파일 삭제
 router.delete('/files/reply/:ticket_reply_files_id', verifyToken, async (req, res) => {
   const { ticket_reply_files_id } = req.params;
-  console.log('티켓 명!!!!!!!!!!!!!!!!!!!!', ticket_reply_files_id);
   const userId = req.user.id;
 
   try {
