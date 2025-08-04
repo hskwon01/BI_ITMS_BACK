@@ -13,14 +13,31 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const fs = require('fs');
 
-const { createTicket } = require('../models/ticketModel');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { createTicket, assignTicket } = require('../models/ticketModel');
+const { verifyToken, requireAdmin, requireTeam } = require('../middleware/auth');
 const { getRepliesByTicketId, addReply } = require('../models/replyModel');
 const cloudinary = require('../config/cloudinary');
-const { sendTicketNotificationToAdmin } = require('../config/email');
+const { sendTicketNotificationToAdmin, sendTicketStatusUpdateToCustomer, sendTicketClosedNotification } = require('../config/email');
+
+// 담당자 배정/수정
+router.put('/:id/assignee', verifyToken, requireTeam, async (req, res) => {
+  const ticketId = req.params.id;
+  const { assignee_id } = req.body; // assignee_id는 null이 될 수도 있음 (배정 해제)
+
+  try {
+    const updatedTicket = await assignTicket(ticketId, assignee_id);
+    if (!updatedTicket) {
+      return res.status(404).json({ message: '티켓을 찾을 수 없습니다.' });
+    }
+    res.json({ message: '담당자 배정/수정 완료', ticket: updatedTicket });
+  } catch (err) {
+    console.error('담당자 배정/수정 오류:', err);
+    res.status(500).json({ error: '담당자 배정/수정 실패' });
+  }
+});
 
 // 티켓 첨부파일 삭제
-router.delete('/files/ticket/:ticket_files_id', verifyToken, requireAdmin, async (req, res) => {
+router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async (req, res) => {
   const { ticket_files_id } = req.params;
 
   try {
@@ -130,7 +147,7 @@ router.get('/my/unread-counts', verifyToken, async (req, res) => {
 });
 
 // 고객 댓글 알림 확인
-router.get('/admin/unread-counts', verifyToken, requireAdmin, async (req, res) => {
+router.get('/admin/unread-counts', verifyToken, requireTeam, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
@@ -178,24 +195,28 @@ router.get('/my', verifyToken, async (req, res) => {
   const customer_id = req.user.id;
   const { status, urgency, keyword } = req.query;
 
-  let query = `SELECT * FROM tickets WHERE customer_id = $1`;
+  let query = `
+    SELECT t.*, u.name AS assignee_name, u.email AS assignee_email
+    FROM tickets t
+    LEFT JOIN users u ON t.assignee_id = u.id
+    WHERE t.customer_id = $1`;
   const params = [customer_id];
   let index = 2;
 
   if (status) {
-    query += ` AND status = $${index++}`;
+    query += ` AND t.status = ${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND urgency = $${index++}`;
+    query += ` AND t.urgency = ${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND title ILIKE $${index++}`;
+    query += ` AND t.title ILIKE ${index++}`;
     params.push(`%${keyword}%`);
   }
 
-  query += ` ORDER BY created_at DESC`;
+  query += ` ORDER BY t.created_at DESC`;
 
   try {
     const result = await pool.query(query, params);
@@ -206,28 +227,30 @@ router.get('/my', verifyToken, async (req, res) => {
 });
 
 // 모든 티켓 목록 (관리자)
-router.get('/', verifyToken, requireAdmin, async (req, res) => {
+router.get('/', verifyToken, requireTeam, async (req, res) => {
   const { status, urgency, keyword } = req.query;
 
   let query = `
-    SELECT t.*, u.email AS customer_email, u.company_name, u.name
+    SELECT t.*, u.email AS customer_email, u.company_name, u.name AS customer_name,
+           a.name AS assignee_name, a.email AS assignee_email
     FROM tickets t
-    JOIN users u ON t.customer_id = u.id
+    LEFT JOIN users u ON t.customer_id = u.id
+    LEFT JOIN users a ON t.assignee_id = a.id
     WHERE 1=1`;
   const params = [];
   let index = 1;
 
   if (status) {
-    query += ` AND t.status = $${index++}`;
+    query += ` AND t.status = ${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND t.urgency = $${index++}`;
+    query += ` AND t.urgency = ${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND t.title ILIKE $${index++}`;
-    params.push(`%${keyword}%`);
+    query += ` AND (t.title ILIKE ${index++} OR u.name ILIKE ${index++} OR a.name ILIKE ${index++})`;
+    params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
   }
 
   query += ` ORDER BY t.created_at DESC`;
@@ -235,7 +258,8 @@ router.get('/', verifyToken, requireAdmin, async (req, res) => {
   try {
     const result = await pool.query(query, params);
     res.json(result.rows);
-  } catch {
+  } catch (err) {
+    console.error('전체 티켓 조회 실패:', err);
     res.status(500).json({ error: '전체 티켓 조회 실패' });
   }
 });
@@ -245,13 +269,19 @@ router.get('/:id', verifyToken, async (req, res) => {
   const ticketId = req.params.id;
 
   try {
-    // 1. 티켓 정보
-    const ticketRes = await pool.query('SELECT * FROM tickets WHERE id = $1', [ticketId]);
+    // 1. 티켓 정보 (담당자 정보 포함)
+    const ticketRes = await pool.query(
+      `SELECT t.*, u.name AS assignee_name, u.email AS assignee_email
+       FROM tickets t
+       LEFT JOIN users u ON t.assignee_id = u.id
+       WHERE t.id = $1`,
+      [ticketId]
+    );
 
     if (ticketRes.rows.length === 0) return res.status(404).json({ message: '티켓 없음' });
     const ticket = ticketRes.rows[0];
 
-    // ✅ 2. 티켓 첨부파일 정보 추가
+    // 2. 티켓 첨부파일 정보 추가
     const fileRes = await pool.query(
       `SELECT id as ticket_files_id, url, originalname, public_id FROM ticket_files WHERE ticket_id = $1`,
       [ticketId]
@@ -371,7 +401,8 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       customer_id,
       platform,
       sw_version,
-      os
+      os,
+      status: '접수' // 초기 상태를 '접수'로 설정
     });
     const ticketId = newTicket.id;
 
@@ -399,7 +430,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
         sw_version: sw_version,
         os: os,
         createdAt: new Date(newTicket.created_at).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }),
-        files: files
+        // files는 이메일 본문에 포함되지 않으므로 제외
       };
       
       await sendTicketNotificationToAdmin(ticketData);
@@ -417,7 +448,7 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
 });
 
 // 관리자: 티켓 상태 변경
-router.put('/:id/status', verifyToken, requireAdmin, async (req, res) => {
+router.patch('/:id/status', verifyToken, requireTeam, async (req, res) => {
   const ticketId = req.params.id;
   const { status } = req.body;
 
@@ -428,17 +459,90 @@ router.put('/:id/status', verifyToken, requireAdmin, async (req, res) => {
 
   try {
     const result = await pool.query(
-      'UPDATE tickets SET status = $1 WHERE id = $2 RETURNING *',
+      'UPDATE tickets SET status = $1 WHERE id = $2 RETURNING customer_id, title, status, urgency, id as ticketId',
       [status, ticketId]
     );
     
     if (result.rows.length === 0) {
       return res.status(404).json({ message: '티켓을 찾을 수 없습니다.' });
     }
+
+    const updatedTicket = result.rows[0];
+
+    // 상태가 '진행중'으로 변경되었을 때 고객에게 알림 메일 발송
+    if (status === '진행중') {
+      try {
+        const customerRes = await pool.query(
+          `SELECT email FROM users WHERE id = $1`,
+          [updatedTicket.customer_id]
+        );
+        const customerEmail = customerRes.rows[0]?.email;
+
+        console.log('DEBUG: updatedTicket for email:', updatedTicket);
+        console.log('DEBUG: customerEmail for email:', customerEmail);
+
+        if (customerEmail) {
+          const emailTicketData = {
+            ...updatedTicket,
+            ticketId: updatedTicket.ticketid
+          };
+          await sendTicketStatusUpdateToCustomer(emailTicketData, customerEmail);
+          console.log('고객에게 티켓 상태 변경 알림 메일 발송 완료');
+        }
+      } catch (emailError) {
+        console.error('고객 티켓 상태 변경 알림 메일 발송 실패:', emailError);
+      }
+    }
     
+    // 상태가 '종결'로 변경되었을 때 고객, 담당자, 관리자에게 알림 메일 발송
+    if (status === '종결') {
+      try {
+        // 1. 티켓의 상세 정보 조회 (고객명, 담당자명, 담당자 이메일 등)
+        const ticketDetailsRes = await pool.query(
+          `SELECT
+             t.id, t.title, t.status, t.urgency,
+             c.name as customer_name, c.email as customer_email,
+             a.name as assignee_name, a.email as assignee_email
+           FROM tickets t
+           LEFT JOIN users c ON t.customer_id = c.id
+           LEFT JOIN users a ON t.assignee_id = a.id
+           WHERE t.id = $1`,
+          [ticketId]
+        );
+        const ticketDetails = ticketDetailsRes.rows[0];
+
+        // 2. 모든 관리자 및 기술지원팀 이메일 조회
+        const adminUsersRes = await pool.query(
+          `SELECT email FROM users WHERE role = 'admin' OR role = 'itsm_team'`
+        );
+        const adminEmails = adminUsersRes.rows.map(u => u.email);
+
+        // 3. 메일 수신자 목록 생성 (중복 제거)
+        const recipientEmails = [...new Set([
+          ticketDetails.customer_email,
+          ticketDetails.assignee_email,
+          ...adminEmails
+        ].filter(Boolean))]; // null, undefined 값 제거
+
+        // 4. 메일 발송
+        if (recipientEmails.length > 0) {
+          await sendTicketClosedNotification({
+            ticketId: ticketDetails.id,
+            title: ticketDetails.title,
+            customer_name: ticketDetails.customer_name,
+            assignee_name: ticketDetails.assignee_name,
+          }, recipientEmails);
+          console.log('티켓 종결 알림 메일 발송 완료');
+        }
+
+      } catch (emailError) {
+        console.error('티켓 종결 알림 메일 발송 실패:', emailError);
+      }
+    }
+
     res.json({ 
       message: '상태 변경 완료',
-      ticket: result.rows[0]
+      ticket: updatedTicket
     });
   } catch (err) {
     console.error('상태 변경 오류:', err);

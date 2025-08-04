@@ -22,4 +22,11 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
-module.exports = { verifyToken, requireAdmin };
+const requireTeam = (req, res, next) => {
+  if (req.user.role !== 'admin' && req.user.role !== 'itsm_team') {
+    return res.status(403).json({ message: '팀 멤버 권한이 필요합니다.' });
+  }
+  next();
+};
+
+module.exports = { verifyToken, requireAdmin, requireTeam };
