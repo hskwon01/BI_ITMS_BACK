@@ -49,6 +49,10 @@ router.post('/register', async (req, res) => {
 
 // 로그인
 router.post('/login', async (req, res) => {
+  if (!req.body) {
+    return res.status(400).json({ message: 'Request body is missing' });
+  }
+  
   const { email, password } = req.body;
   try {
     const user = await getUserByEmail(email);
@@ -119,6 +123,10 @@ router.post('/send-verification', async (req, res) => {
 
 // 이메일 인증 코드 확인
 router.post('/verify-email', async (req, res) => {
+  if (!req.body) {
+    return res.status(400).json({ message: 'Request body is missing' });
+  }
+  
   const { email, verificationCode } = req.body;
 
   try {
@@ -160,6 +168,11 @@ router.get('/me', verifyToken, async (req, res) => {
 
   const { password, ...safeUser } = user;
   res.json(safeUser);
+});
+
+// Catch-all route for debugging
+router.use((req, res) => {
+  res.status(404).json({ message: 'Route not found in auth router' });
 });
 
 module.exports = router;

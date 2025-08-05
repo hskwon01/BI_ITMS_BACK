@@ -7,8 +7,22 @@ const dashboardRoutes = require('./routes/dashboard');
 require('dotenv').config();
 
 const app = express();
+
+// CORS 설정
 app.use(cors());
-app.use(express.json());
+
+// Body parser 미들웨어 설정
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 요청 로깅 미들웨어 (디버깅용)
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, {
+    body: req.body,
+    contentType: req.get('Content-Type')
+  });
+  next();
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

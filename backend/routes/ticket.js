@@ -477,10 +477,7 @@ router.patch('/:id/status', verifyToken, requireTeam, async (req, res) => {
           [updatedTicket.customer_id]
         );
         const customerEmail = customerRes.rows[0]?.email;
-
-        console.log('DEBUG: updatedTicket for email:', updatedTicket);
-        console.log('DEBUG: customerEmail for email:', customerEmail);
-
+        
         if (customerEmail) {
           const emailTicketData = {
             ...updatedTicket,
