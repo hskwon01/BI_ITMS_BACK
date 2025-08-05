@@ -22,13 +22,13 @@ const sendVerificationEmail = async (email, verificationCode) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: '[ITMS] 이메일 인증 코드',
+    subject: '[ITSM] 이메일 인증 코드',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2d3652; text-align: center;">ITMS 이메일 인증</h2>
+        <h2 style="color: #2d3652; text-align: center;">ITSM 이메일 인증</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            안녕하세요! ITMS 회원가입을 위한 이메일 인증 코드를 발송드립니다.
+            안녕하세요! ITSM 회원가입을 위한 이메일 인증 코드를 발송드립니다.
           </p>
           <div style="background: #fff; padding: 20px; border-radius: 8px; text-align: center; border: 2px solid #e2e8f0;">
             <h3 style="color: #2d3652; margin: 0 0 10px 0;">인증 코드</h3>
@@ -41,7 +41,7 @@ const sendVerificationEmail = async (email, verificationCode) => {
           </p>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
-          © 2025 ITMS. All rights reserved.
+          © 2025 ITSM. All rights reserved.
         </p>
       </div>
     `
@@ -61,13 +61,13 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: adminEmails.join(', '),
-    subject: '[ITMS] 새로운 사용자 승인 요청',
+    subject: '[ITSM] 새로운 사용자 승인 요청',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2d3652; text-align: center;">새로운 사용자 승인 요청</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            새로운 사용자가 ITMS에 가입했습니다. 승인 처리가 필요합니다.
+            새로운 사용자가 ITSM에 가입했습니다. 승인 처리가 필요합니다.
           </p>
           <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
             <h3 style="color: #2d3652; margin: 0 0 15px 0;">사용자 정보</h3>
@@ -97,7 +97,7 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
           </div>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
-          © 2025 ITMS. All rights reserved.
+          © 2025 ITSM. All rights reserved.
         </p>
       </div>
     `
@@ -116,12 +116,12 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
 // 사용자에게 회원가입 승인 이메일 발송 함수
 const sendApprovalEmail = async (to, name) => {
   const mailOptions = {
-    from: `"ITMS 지원팀" <${process.env.EMAIL_USER}>`,
+    from: `"ITSM 지원팀" <${process.env.EMAIL_USER}>`,
     to,
     subject: '계정 승인 완료 안내',
     html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #2d3652; text-align: center;">ITMS 계정 승인 완료</h2>
+      <h2 style="color: #2d3652; text-align: center;">ITSM 계정 승인 완료</h2>
       <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
         <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
           안녕하세요, <strong>${name}</strong>님!
@@ -129,14 +129,14 @@ const sendApprovalEmail = async (to, name) => {
         <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
           회원님의 계정이 <strong style="color: #7c83fd;">정상적으로 승인</strong>되었습니다.
           <br />
-          이제 <strong>ITMS 시스템</strong>을 자유롭게 이용하실 수 있습니다.
+          이제 <strong>ITSM 시스템</strong>을 자유롭게 이용하실 수 있습니다.
         </p>
         <p style="color: #7b8190; font-size: 14px; margin-top: 20px;">
-          문제가 있거나 도움이 필요하시면 언제든지 ITMS 지원팀에 문의해 주세요.
+          문제가 있거나 도움이 필요하시면 언제든지 ITSM 지원팀에 문의해 주세요.
         </p>
       </div>
       <p style="color: #7b8190; font-size: 12px; text-align: center;">
-        © 2025 ITMS. All rights reserved.
+        © 2025 ITSM. All rights reserved.
       </p>
     </div>
   `
@@ -167,7 +167,7 @@ const sendTicketNotificationToAdmin = async (ticketData) => {
     }
 
     // 이메일 제목
-    const subject = `[BI ITMS] 새로운 기술 지원 티켓 - ${ticketData.urgency} 긴급도`;
+    const subject = `[BI ITSM] 새로운 기술 지원 티켓 - ${ticketData.urgency} 긴급도`;
 
     // 이메일 본문 HTML
     const htmlContent = `
@@ -261,7 +261,7 @@ const sendTicketNotificationToAdmin = async (ticketData) => {
           </div>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
-          © 2025 ITMS. All rights reserved.
+          © 2025 ITSM. All rights reserved.
         </p>
       </div>
     `;
@@ -307,7 +307,7 @@ const getUrgencyColor = (urgency) => {
 // 고객에게 티켓 상태 변경 알림 메일 발송 함수
 const sendTicketStatusUpdateToCustomer = async (ticketData, customerEmail) => {
   try {
-    const subject = `[BI ITMS] 티켓 상태 변경 알림 - #${ticketData.ticketId} ${ticketData.title}`;
+    const subject = `[BI ITSM] 티켓 상태 변경 알림 - #${ticketData.ticketId} ${ticketData.title}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -352,7 +352,7 @@ const sendTicketStatusUpdateToCustomer = async (ticketData, customerEmail) => {
           </div>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
-          © 2025 ITMS. All rights reserved.
+          © 2025 ITSM. All rights reserved.
         </p>
       </div>
     `;
@@ -377,7 +377,7 @@ const sendTicketStatusUpdateToCustomer = async (ticketData, customerEmail) => {
     // 고객 및 관계자에게 티켓 종결 알림 메일 발송 함수
 const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
   try {
-    const subject = `[BI ITMS] 티켓 종결 알림 - #${ticketData.ticketId} ${ticketData.title}`;
+    const subject = `[BI ITSM] 티켓 종결 알림 - #${ticketData.ticketId} ${ticketData.title}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -422,7 +422,7 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
           </div>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
-          © 2025 ITMS. All rights reserved.
+          © 2025 ITSM. All rights reserved.
         </p>
       </div>
     `;
