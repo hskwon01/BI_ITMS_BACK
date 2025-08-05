@@ -303,7 +303,7 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
   const { message } = req.body;
   const author_id = req.user.id;
   
-  if (!message && req.files.length === 0) {
+  if (!message && (!req.files || req.files.length === 0)) {
     return res.status(400).json({ message: '내용 또는 파일 중 하나는 필요합니다.' });
   }
 
@@ -316,12 +316,13 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     const replyId = replyRes.rows[0].id;
 
     // 파일 저장
-    for (const file of req.body.files) {
+    const files = req.files || [];
+    for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
         `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id)
          VALUES ($1, $2, $3, $4)`,
-        [replyId, file.url, fixedOriginalName, file.public_id]
+        [replyId, file.path, fixedOriginalName, file.public_id]
       );
     }
 
@@ -407,13 +408,13 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
     const ticketId = newTicket.id;
 
     // 파일 정보 저장
-    const files = req.body.files || [];
+    const files = req.files || [];
     for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       await pool.query(
         `INSERT INTO ticket_files (ticket_id, url, originalname, public_id)
          VALUES ($1, $2, $3, $4)`,
-        [ticketId, file.url, fixedOriginalName, file.public_id]
+        [ticketId, file.path, fixedOriginalName, file.public_id]
       );
     }
 
