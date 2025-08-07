@@ -228,7 +228,7 @@ router.get('/my', verifyToken, async (req, res) => {
 
 // 모든 티켓 목록 (관리자)
 router.get('/', verifyToken, requireTeam, async (req, res) => {
-  const { status, urgency, keyword } = req.query;
+  const { status, urgency, keyword, type } = req.query;
 
   let query = `
     SELECT t.*, u.email AS customer_email, u.company_name, u.name AS customer_name,
@@ -237,9 +237,14 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
     LEFT JOIN users u ON t.customer_id = u.id
     LEFT JOIN users a ON t.assignee_id = a.id
     WHERE 1=1`;
+
   const params = [];
   let index = 1;
 
+  if (type) {
+    query += ` AND t.ticket_type = $${index++}`;
+    params.push(type);
+  }
   if (status) {
     query += ` AND t.status = ${index++}`;
     params.push(status);
