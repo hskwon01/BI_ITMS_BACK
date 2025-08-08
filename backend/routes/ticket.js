@@ -274,17 +274,22 @@ router.get('/:id', verifyToken, async (req, res) => {
   const ticketId = req.params.id;
 
   try {
-    // 1. 티켓 정보 (담당자 정보 포함)
+    // 1. 티켓 정보 (등록자, 담당자 정보 포함)
     const ticketRes = await pool.query(
-      `SELECT t.*, u.name AS assignee_name, u.email AS assignee_email
+      `SELECT t.*, 
+              u.name AS customer_name, u.email AS customer_email, u.company_name,
+              a.name AS assignee_name, a.email AS assignee_email
        FROM tickets t
-       LEFT JOIN users u ON t.assignee_id = u.id
+       LEFT JOIN users u ON t.customer_id = u.id
+       LEFT JOIN users a ON t.assignee_id = a.id
        WHERE t.id = $1`,
       [ticketId]
     );
 
     if (ticketRes.rows.length === 0) return res.status(404).json({ message: '티켓 없음' });
     const ticket = ticketRes.rows[0];
+
+
 
     // 2. 티켓 첨부파일 정보 추가
     const fileRes = await pool.query(
@@ -298,6 +303,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 
     res.json({ ticket, replies });
   } catch (err) {
+    console.error('티켓 상세 조회 실패:', err);
     res.status(500).json({ error: '티켓 상세 조회 실패' });
   }
 });
