@@ -204,15 +204,15 @@ router.get('/my', verifyToken, async (req, res) => {
   let index = 2;
 
   if (status) {
-    query += ` AND t.status = ${index++}`;
+    query += ` AND t.status = $${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND t.urgency = ${index++}`;
+    query += ` AND t.urgency = $${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND t.title ILIKE ${index++}`;
+    query += ` AND t.title ILIKE $${index++}`;
     params.push(`%${keyword}%`);
   }
 
@@ -246,15 +246,15 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
     params.push(type);
   }
   if (status) {
-    query += ` AND t.status = ${index++}`;
+    query += ` AND t.status = $${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND t.urgency = ${index++}`;
+    query += ` AND t.urgency = $${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND (t.title ILIKE ${index++} OR u.name ILIKE ${index++} OR a.name ILIKE ${index++})`;
+    query += ` AND (t.title ILIKE $${index++} OR u.name ILIKE $${index++} OR a.name ILIKE ${index++})`;
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
   }
 
