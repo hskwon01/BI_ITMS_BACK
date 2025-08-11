@@ -6,6 +6,8 @@ const userRoutes = require('./routes/user');
 const ticketRoutes = require('./routes/ticket');
 const dashboardRoutes = require('./routes/dashboard');
 const magicLinkRoutes = require('./routes/magicLink');
+// 배포 환경에서 테이블 자동 생성 보장 (idempotent)
+require('./config/setupTables');
 
 const app = express();
 
