@@ -14,12 +14,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 const pool = require('../config/db');
 
-// 목록 조회 (누구나)
+// 목록 조회 (누구나) - 페이징 total 포함
 router.get('/', async (req, res) => {
   try {
     const { limit = 20, offset = 0, keyword = '' } = req.query;
-    const rows = await listNotices({ limit: Number(limit), offset: Number(offset), keyword });
-    res.json(rows);
+    const result = await listNotices({ limit: Number(limit), offset: Number(offset), keyword });
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '공지 목록 조회 실패' });

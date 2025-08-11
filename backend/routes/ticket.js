@@ -278,6 +278,7 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
 // 티켓 상세 정보 + 댓글 + 첨부파일
 router.get('/:id', verifyToken, async (req, res) => {
   const ticketId = req.params.id;
+  console.log('티켓 상세 조회 요청 - 티켓 ID:', ticketId);
 
   try {
     // 1. 티켓 정보 (등록자, 담당자 정보 포함)
@@ -295,14 +296,16 @@ router.get('/:id', verifyToken, async (req, res) => {
     if (ticketRes.rows.length === 0) return res.status(404).json({ message: '티켓 없음' });
     const ticket = ticketRes.rows[0];
 
-
-
     // 2. 티켓 첨부파일 정보 추가
     const fileRes = await pool.query(
       `SELECT id as ticket_files_id, url, originalname, public_id FROM ticket_files WHERE ticket_id = $1`,
       [ticketId]
     );
     ticket.files = fileRes.rows;
+    
+    // 디버깅: 파일 정보 로그 출력
+    console.log('티켓 ID:', ticketId);
+    console.log('파일 정보:', ticket.files);
 
     // 3. 댓글 + 첨부파일
     const replies = await getRepliesByTicketId(ticketId);
@@ -332,15 +335,29 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     );
     const replyId = replyRes.rows[0].id;
 
-    // 파일 저장
+    // Cloudinary에 파일 업로드 및 DB에 정보 저장
     const files = req.files || [];
     for (const file of files) {
-      const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
-      await pool.query(
-        `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id)
-         VALUES ($1, $2, $3, $4)`,
-        [replyId, file.path, fixedOriginalName, file.public_id]
-      );
+      try {
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'ticket-replies',
+          resource_type: 'auto'
+        });
+
+        const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        await pool.query(
+          `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id, size)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [replyId, result.secure_url, fixedOriginalName, result.public_id, result.bytes]
+        );
+
+        // 로컬에 임시 저장된 파일 삭제
+        fs.unlinkSync(file.path);
+        
+      } catch (uploadError) {
+        console.error('Cloudinary 업로드 실패:', uploadError);
+        // 업로드 실패 시 이미 추가된 댓글은 유지하되, 에러 로깅
+      }
     }
 
     res.status(201).json({ message: '댓글 등록 완료', reply_id: replyId });
@@ -428,12 +445,17 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
 
     // 파일 정보 저장
     const files = req.files || [];
+    console.log('업로드된 파일 수:', files.length);
+    console.log('업로드된 파일 정보:', files.map(f => ({ filename: f.filename, originalname: f.originalname })));
+    
     for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
+      const fileUrl = `uploads/${file.filename}`; // Corrected path
+      console.log('저장할 파일 URL:', fileUrl);
       await pool.query(
         `INSERT INTO ticket_files (ticket_id, url, originalname, public_id)
          VALUES ($1, $2, $3, $4)`,
-        [ticketId, file.path, fixedOriginalName, file.public_id]
+        [ticketId, fileUrl, fixedOriginalName, file.public_id]
       );
     }
 
