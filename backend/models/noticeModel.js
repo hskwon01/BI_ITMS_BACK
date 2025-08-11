@@ -3,15 +3,23 @@ const pool = require('../config/db');
 const listNotices = async ({ limit = 20, offset = 0, keyword = '' } = {}) => {
   const where = keyword ? `WHERE title ILIKE $3 OR content ILIKE $3` : '';
   const params = keyword ? [limit, offset, `%${keyword}%`] : [limit, offset];
-  const q = `
+  const listQuery = `
     SELECT id, title, content, is_pinned, author_id, created_at, updated_at
     FROM notices
     ${where}
     ORDER BY is_pinned DESC, created_at DESC
     LIMIT $1 OFFSET $2
   `;
-  const res = await pool.query(q, params);
-  return res.rows;
+  const countQuery = `
+    SELECT COUNT(*)::int AS total
+    FROM notices
+    ${where}
+  `;
+  const [listRes, countRes] = await Promise.all([
+    pool.query(listQuery, params),
+    pool.query(countQuery, keyword ? [params[2]] : [])
+  ]);
+  return { items: listRes.rows, total: countRes.rows[0]?.total || 0 };
 };
 
 const getNoticeById = async (id) => {
