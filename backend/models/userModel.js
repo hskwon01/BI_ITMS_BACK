@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const crypto = require('crypto');
 
 const createUser = async (email, hashedPassword, name, company) => {
   const result = await pool.query(
@@ -41,7 +42,7 @@ const updateUserById = async (id, updates) => {
 
   allowedUpdates.forEach(field => {
     if (updates[field] !== undefined) {
-      fields.push(`${field} = ${valueCount++}`);
+      fields.push(`${field} = $${valueCount++}`);
       values.push(updates[field]);
     }
   });
@@ -51,7 +52,7 @@ const updateUserById = async (id, updates) => {
   }
 
   query += fields.join(', ');
-  query += ` WHERE id = ${valueCount} RETURNING *`;
+  query += ` WHERE id = $${valueCount} RETURNING *`;
   values.push(id);
 
   const result = await pool.query(query, values);
@@ -63,6 +64,17 @@ const deleteUserById = async (id) => {
   return result.rows[0];
 };
 
+// 비밀번호 없이 매직 링크 사용자를 생성하는 함수
+const createMagicUser = async (email, name, company) => {
+  // 실제 사용되지 않는 임의의 비밀번호 생성
+  const randomPassword = crypto.randomBytes(16).toString('hex');
+  const result = await pool.query(
+    'INSERT INTO users (email, name, company_name, is_approved, role, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [email, name, company, true, 'user', randomPassword] // is_approved를 true, role을 'user'로, 임의의 비밀번호 설정
+  );
+  return result.rows[0];
+};
+
 module.exports = {
   createUser,
   getUserByEmail,
@@ -70,4 +82,5 @@ module.exports = {
   getAdminEmails,
   updateUserById,
   deleteUserById,
+  createMagicUser, // 추가
 };

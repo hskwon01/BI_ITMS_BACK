@@ -403,7 +403,7 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
               </tr>
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">고객:</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${ticketData.customer_name}</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #4a5568;">${ticketData.customer_name}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; font-weight: 600; color: #4a5568;">담당자:</td>
@@ -444,6 +444,99 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
   }
 };
 
+// 매직 링크 이메일 발송 함수
+const sendMagicLinkEmail = async (email, token) => {
+  const apiBase = process.env.BACKEND_URL || process.env.API_URL || 'http://localhost:5000';
+  const loginUrl = `${apiBase.replace(/\/$/, '')}/api/magic-link/open?token=${token}`;
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: '[ITSM] 비밀번호 없이 로그인',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d3652; text-align: center;">ITSM 로그인 링크</h2>
+        <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            안녕하세요! 아래 버튼을 클릭하여 ITSM에 로그인하세요.
+          </p>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${loginUrl}" 
+               style="background-color: #7c83fd; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                ITSM 로그인
+            </a>
+          </div>
+          <p style="color: #7b8190; font-size: 14px; margin-top: 20px;">
+            이 링크를 통해 로그인하실 수 있습니다. (테스트 환경에서는 유효기간이 다를 수 있습니다.)
+          </p>
+        </div>
+        <p style="color: #7b8190; font-size: 12px; text-align: center;">
+          © 2025 ITSM. All rights reserved.
+        </p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Magic link email sending error:', error);
+    return false;
+  }
+};
+
+// 관리자에게 새로운 접근 요청 알림 메일 발송 함수
+const sendAdminNewRequestNotification = async (adminEmails, newRequest) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: adminEmails.join(', '),
+    subject: '[ITSM] 새로운 접근 요청',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d3652; text-align: center;">새로운 사용자 접근 요청</h2>
+        <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            새로운 사용자가 비밀번호 없는 로그인을 요청했습니다. 승인 처리가 필요합니다.
+          </p>
+          <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
+            <h3 style="color: #2d3652; margin: 0 0 15px 0;">요청자 정보</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">이름:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${newRequest.name}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #4a5568;">이메일:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; color: #2d3652;">${newRequest.email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; font-weight: 600; color: #4a5568;">회사:</td>
+                <td style="padding: 8px 0; color: #2d3652;">${newRequest.company_name || '미입력'}</td>
+              </tr>
+            </table>
+          </div>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?next=%2Fadmin%2Faccess-requests" 
+               style="background-color: #2d3652; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                승인 페이지로 이동
+            </a>
+          </div>
+        </div>
+        <p style="color: #7b8190; font-size: 12px; text-align: center;">
+          © 2025 ITSM. All rights reserved.
+        </p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Admin new request notification email sending error:', error);
+    return false;
+  }
+};
 
 module.exports = {
   generateVerificationCode,
@@ -452,5 +545,7 @@ module.exports = {
   sendApprovalEmail,
   sendTicketNotificationToAdmin,
   sendTicketStatusUpdateToCustomer,
-  sendTicketClosedNotification
+  sendTicketClosedNotification,
+  sendMagicLinkEmail,
+  sendAdminNewRequestNotification,
 };  
