@@ -3,15 +3,27 @@ const router = express.Router();
 const pool = require('../config/db');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 
-// 관리자 대시보드: 티켓/사용자 통계
+// 관리자 대시보드: 티켓/사용자 통계 (옵션: days, type)
 router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
   try {
+    const days = Number(req.query.days || 30);
+    const type = req.query.type; // 'SR' | 'SM' (옵션)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const whereParts = ['created_at >= $1'];
+    const paramsForTickets = [since];
+    if (type === 'SR' || type === 'SM') {
+      whereParts.push('ticket_type = $2');
+      paramsForTickets.push(type);
+    }
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
     const result = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM tickets WHERE status = '접수'`),
-      pool.query(`SELECT COUNT(*) FROM tickets WHERE status = '진행중'`),
-      pool.query(`SELECT COUNT(*) FROM tickets WHERE status = '답변 완료'`),
-      pool.query(`SELECT COUNT(*) FROM tickets WHERE status = '종결'`),
-      pool.query(`SELECT COUNT(*) FROM tickets`),
+      pool.query(`SELECT COUNT(*) FROM tickets ${whereClause} AND status = '접수'`, paramsForTickets),
+      pool.query(`SELECT COUNT(*) FROM tickets ${whereClause} AND status = '진행중'`, paramsForTickets),
+      pool.query(`SELECT COUNT(*) FROM tickets ${whereClause} AND status = '답변 완료'`, paramsForTickets),
+      pool.query(`SELECT COUNT(*) FROM tickets ${whereClause} AND status = '종결'`, paramsForTickets),
+      pool.query(`SELECT COUNT(*) FROM tickets ${whereClause}`, paramsForTickets),
       pool.query(`SELECT COUNT(*) FROM users WHERE role = 'customer'`),
       pool.query(`SELECT COUNT(*) FROM users WHERE role = 'admin'`)
     ]);
@@ -28,6 +40,37 @@ router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: '대시보드 통계 조회 실패' });
+  }
+});
+
+// 관리자 대시보드: 일자별 생성 추이 (옵션: days, type)
+router.get('/stats/trends', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const days = Number(req.query.days || 30);
+    const type = req.query.type; // 'SR' | 'SM' (옵션)
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const whereParts = ['created_at >= $1'];
+    const params = [since];
+    if (type === 'SR' || type === 'SM') {
+      whereParts.push('ticket_type = $2');
+      params.push(type);
+    }
+    const whereClause = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
+
+    const q = `
+      SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day,
+             COUNT(*)::int AS value
+      FROM tickets
+      ${whereClause}
+      GROUP BY 1
+      ORDER BY 1
+    `;
+    const result = await pool.query(q, params);
+    res.json(result.rows); // [{ day: '2025-08-01', value: 10 }, ...]
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '대시보드 추이 조회 실패' });
   }
 });
 
