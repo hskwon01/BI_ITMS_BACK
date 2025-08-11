@@ -193,7 +193,7 @@ router.post('/:id/read', verifyToken, async (req, res) => {
 // 내 티켓 목록 (고객)
 router.get('/my', verifyToken, async (req, res) => {
   const customer_id = req.user.id;
-  const { status, urgency, keyword } = req.query;
+  const { status, urgency, keyword, ticket_type } = req.query;
 
   let query = `
     SELECT t.*, u.name AS assignee_name, u.email AS assignee_email
@@ -203,6 +203,10 @@ router.get('/my', verifyToken, async (req, res) => {
   const params = [customer_id];
   let index = 2;
 
+  if (ticket_type) {
+    query += ` AND t.ticket_type = $${index++}`;
+    params.push(ticket_type);
+  }
   if (status) {
     query += ` AND t.status = $${index++}`;
     params.push(status);
@@ -228,7 +232,7 @@ router.get('/my', verifyToken, async (req, res) => {
 
 // 모든 티켓 목록 (관리자)
 router.get('/', verifyToken, requireTeam, async (req, res) => {
-  const { status, urgency, keyword, type } = req.query;
+  const { status, urgency, keyword, type, ticket_type } = req.query;
 
   let query = `
     SELECT t.*, u.email AS customer_email, u.company_name, u.name AS customer_name,
@@ -241,9 +245,11 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
   const params = [];
   let index = 1;
 
-  if (type) {
+  // type 또는 ticket_type 파라미터 처리
+  const ticketTypeFilter = ticket_type || type;
+  if (ticketTypeFilter) {
     query += ` AND t.ticket_type = $${index++}`;
-    params.push(type);
+    params.push(ticketTypeFilter);
   }
   if (status) {
     query += ` AND t.status = $${index++}`;
