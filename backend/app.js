@@ -6,6 +6,7 @@ const userRoutes = require('./routes/user');
 const ticketRoutes = require('./routes/ticket');
 const dashboardRoutes = require('./routes/dashboard');
 const magicLinkRoutes = require('./routes/magicLink');
+const noticeRoutes = require('./routes/notice');
 // 배포 환경에서 테이블 자동 생성 보장 (idempotent)
 require('./config/setupTables');
 
@@ -36,6 +37,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/magic-link', magicLinkRoutes);
+app.use('/api/notices', noticeRoutes);
 
 const listEndpoints = require('express-list-endpoints');
 console.log(listEndpoints(app));
