@@ -204,15 +204,15 @@ router.get('/my', verifyToken, async (req, res) => {
   let index = 2;
 
   if (status) {
-    query += ` AND t.status = ${index++}`;
+    query += ` AND t.status = $${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND t.urgency = ${index++}`;
+    query += ` AND t.urgency = $${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND t.title ILIKE ${index++}`;
+    query += ` AND t.title ILIKE $${index++}`;
     params.push(`%${keyword}%`);
   }
 
@@ -228,7 +228,7 @@ router.get('/my', verifyToken, async (req, res) => {
 
 // 모든 티켓 목록 (관리자)
 router.get('/', verifyToken, requireTeam, async (req, res) => {
-  const { status, urgency, keyword } = req.query;
+  const { status, urgency, keyword, type } = req.query;
 
   let query = `
     SELECT t.*, u.email AS customer_email, u.company_name, u.name AS customer_name,
@@ -237,19 +237,24 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
     LEFT JOIN users u ON t.customer_id = u.id
     LEFT JOIN users a ON t.assignee_id = a.id
     WHERE 1=1`;
+
   const params = [];
   let index = 1;
 
+  if (type) {
+    query += ` AND t.ticket_type = $${index++}`;
+    params.push(type);
+  }
   if (status) {
-    query += ` AND t.status = ${index++}`;
+    query += ` AND t.status = $${index++}`;
     params.push(status);
   }
   if (urgency) {
-    query += ` AND t.urgency = ${index++}`;
+    query += ` AND t.urgency = $${index++}`;
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND (t.title ILIKE ${index++} OR u.name ILIKE ${index++} OR a.name ILIKE ${index++})`;
+    query += ` AND (t.title ILIKE $${index++} OR u.name ILIKE $${index++} OR a.name ILIKE ${index++})`;
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
   }
 
@@ -269,17 +274,22 @@ router.get('/:id', verifyToken, async (req, res) => {
   const ticketId = req.params.id;
 
   try {
-    // 1. 티켓 정보 (담당자 정보 포함)
+    // 1. 티켓 정보 (등록자, 담당자 정보 포함)
     const ticketRes = await pool.query(
-      `SELECT t.*, u.name AS assignee_name, u.email AS assignee_email
+      `SELECT t.*, 
+              u.name AS customer_name, u.email AS customer_email, u.company_name,
+              a.name AS assignee_name, a.email AS assignee_email
        FROM tickets t
-       LEFT JOIN users u ON t.assignee_id = u.id
+       LEFT JOIN users u ON t.customer_id = u.id
+       LEFT JOIN users a ON t.assignee_id = a.id
        WHERE t.id = $1`,
       [ticketId]
     );
 
     if (ticketRes.rows.length === 0) return res.status(404).json({ message: '티켓 없음' });
     const ticket = ticketRes.rows[0];
+
+
 
     // 2. 티켓 첨부파일 정보 추가
     const fileRes = await pool.query(
@@ -293,6 +303,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 
     res.json({ ticket, replies });
   } catch (err) {
+    console.error('티켓 상세 조회 실패:', err);
     res.status(500).json({ error: '티켓 상세 조회 실패' });
   }
 });
@@ -387,7 +398,7 @@ router.delete('/:ticketId/replies/:replyId', verifyToken, async (req, res) => {
 
 // 티켓 생성
 router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
-  const { title, description, urgency, product, platform, sw_version, os } = req.body;
+  const { title, description, urgency, product, platform, sw_version, os, ticket_type, client_company } = req.body;
   const customer_id = req.user.id;
   // customer_name 조회  
   const result = await pool.query(`SELECT name FROM users WHERE id = $1`, [customer_id]);
@@ -403,7 +414,9 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
       platform,
       sw_version,
       os,
-      status: '접수' // 초기 상태를 '접수'로 설정
+      status: '접수', // 초기 상태를 '접수'로 설정
+      ticket_type,
+      client_company
     });
     const ticketId = newTicket.id;
 
