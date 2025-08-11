@@ -46,29 +46,6 @@ const createNoticesTable = async () => {
   }
 };
 
-const createNoticesTable = async () => {
-  const query = `
-    CREATE TABLE IF NOT EXISTS notices (
-      id SERIAL PRIMARY KEY,
-      title VARCHAR(255) NOT NULL,
-      content TEXT NOT NULL,
-      is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
-      author_id INTEGER,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-    CREATE INDEX IF NOT EXISTS notices_created_at_idx ON notices(created_at DESC);
-    CREATE INDEX IF NOT EXISTS notices_is_pinned_idx ON notices(is_pinned);
-  `;
-
-  try {
-    await pool.query(query);
-    console.log('"notices" table created or already exists.');
-  } catch (err) {
-    console.error('Error creating "notices" table:', err);
-  }
-};
-
 const createNoticeFilesTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS notice_files (
@@ -92,4 +69,3 @@ const createNoticeFilesTable = async () => {
 createAccessRequestsTable();
 createNoticesTable();
 createNoticeFilesTable();
-createNoticesTable();
