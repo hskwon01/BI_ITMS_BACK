@@ -48,7 +48,9 @@ router.post('/', verifyToken, requireTeam, upload.array('files', 5), async (req,
     const files = req.files || [];
     for (const f of files) {
       const fixedOriginalName = Buffer.from(f.originalname, 'latin1').toString('utf8');
-      await pool.query(`INSERT INTO notice_files (notice_id, url, originalname, public_id) VALUES ($1, $2, $3, $4)`, [row.id, f.path, fixedOriginalName, f.public_id || null]);
+      // 파일명만 저장 (경로에서 uploads/ 부분 제거)
+      const fileName = f.filename || f.path.replace('uploads/', '');
+      await pool.query(`INSERT INTO notice_files (notice_id, url, originalname, public_id) VALUES ($1, $2, $3, $4)`, [row.id, fileName, fixedOriginalName, f.public_id || null]);
     }
     res.status(201).json(row);
   } catch (err) {
@@ -58,10 +60,27 @@ router.post('/', verifyToken, requireTeam, upload.array('files', 5), async (req,
 });
 
 // 수정 (관리자/itsm_team)
-router.put('/:id', verifyToken, requireTeam, async (req, res) => {
+router.put('/:id', verifyToken, requireTeam, upload.array('files', 5), async (req, res) => {
   try {
-    const row = await updateNotice(req.params.id, req.body);
+    const { title, content, is_pinned = false } = req.body;
+    const row = await updateNotice(req.params.id, { title, content, is_pinned });
     if (!row) return res.status(404).json({ message: '공지 없음' });
+
+    // 새 파일이 업로드된 경우, 기존 파일 삭제 후 새 파일 추가
+    const files = req.files || [];
+    if (files.length > 0) {
+      // 기존 파일 삭제
+      await pool.query(`DELETE FROM notice_files WHERE notice_id = $1`, [req.params.id]);
+      
+      // 새 파일 추가
+      for (const f of files) {
+        const fixedOriginalName = Buffer.from(f.originalname, 'latin1').toString('utf8');
+        // 파일명만 저장 (경로에서 uploads/ 부분 제거)
+        const fileName = f.filename || f.path.replace('uploads/', '');
+        await pool.query(`INSERT INTO notice_files (notice_id, url, originalname, public_id) VALUES ($1, $2, $3, $4)`, [req.params.id, fileName, fixedOriginalName, f.public_id || null]);
+      }
+    }
+
     res.json(row);
   } catch (err) {
     console.error(err);

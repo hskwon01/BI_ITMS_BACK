@@ -1,24 +1,46 @@
 const pool = require('../config/db');
 
 const listNotices = async ({ limit = 20, offset = 0, keyword = '' } = {}) => {
-  const where = keyword ? `WHERE title ILIKE $3 OR content ILIKE $3` : '';
-  const params = keyword ? [limit, offset, `%${keyword}%`] : [limit, offset];
-  const listQuery = `
-    SELECT id, title, content, is_pinned, author_id, created_at, updated_at
-    FROM notices
-    ${where}
-    ORDER BY is_pinned DESC, created_at DESC
-    LIMIT $1 OFFSET $2
-  `;
-  const countQuery = `
-    SELECT COUNT(*)::int AS total
-    FROM notices
-    ${where}
-  `;
+  let listQuery, countQuery, listParams, countParams;
+  
+  if (keyword && keyword.trim()) {
+    // 키워드가 있는 경우
+    const searchPattern = `%${keyword.trim()}%`;
+    listQuery = `
+      SELECT id, title, content, is_pinned, author_id, created_at, updated_at
+      FROM notices
+      WHERE title ILIKE $3 OR content ILIKE $3
+      ORDER BY is_pinned DESC, created_at DESC
+      LIMIT $1 OFFSET $2
+    `;
+    countQuery = `
+      SELECT COUNT(*)::int AS total
+      FROM notices
+      WHERE title ILIKE $1 OR content ILIKE $1
+    `;
+    listParams = [limit, offset, searchPattern];
+    countParams = [searchPattern];
+  } else {
+    // 키워드가 없는 경우
+    listQuery = `
+      SELECT id, title, content, is_pinned, author_id, created_at, updated_at
+      FROM notices
+      ORDER BY is_pinned DESC, created_at DESC
+      LIMIT $1 OFFSET $2
+    `;
+    countQuery = `
+      SELECT COUNT(*)::int AS total
+      FROM notices
+    `;
+    listParams = [limit, offset];
+    countParams = [];
+  }
+  
   const [listRes, countRes] = await Promise.all([
-    pool.query(listQuery, params),
-    pool.query(countQuery, keyword ? [params[2]] : [])
+    pool.query(listQuery, listParams),
+    pool.query(countQuery, countParams)
   ]);
+  
   return { items: listRes.rows, total: countRes.rows[0]?.total || 0 };
 };
 

@@ -10,6 +10,21 @@ const noticeRoutes = require('./routes/notice');
 // 배포 환경에서 테이블 자동 생성 보장 (idempotent)
 require('./config/setupTables');
 
+// 파일 경로 마이그레이션 (기존 잘못된 경로 수정)
+const pool = require('./config/db');
+(async () => {
+  try {
+    await pool.query(`
+      UPDATE notice_files 
+      SET url = REPLACE(url, 'uploads/', '') 
+      WHERE url LIKE 'uploads/%'
+    `);
+    console.log('파일 경로 마이그레이션 완료');
+  } catch (err) {
+    console.log('파일 경로 마이그레이션 스킵:', err.message);
+  }
+})();
+
 const app = express();
 
 // CORS 설정
