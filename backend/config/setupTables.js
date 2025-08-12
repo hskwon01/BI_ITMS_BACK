@@ -168,6 +168,79 @@ const addColumnIfNotExists = async (tableName, columnName, columnDefinition) => 
   }
 };
 
+// 제품 테이블 생성
+const createProductsTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS products (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      category VARCHAR(100) NOT NULL,
+      description TEXT,
+      base_price DECIMAL(15,2) NOT NULL,
+      unit VARCHAR(50) DEFAULT '개',
+      is_active BOOLEAN DEFAULT true,
+      created_by INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  try {
+    await pool.query(query);
+    console.log('"products" table created or already exists.');
+  } catch (err) {
+    console.error('Error creating "products" table:', err);
+  }
+};
+
+// 견적서 테이블 생성
+const createQuotesTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS quotes (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL,
+      customer_name VARCHAR(255),
+      customer_email VARCHAR(255),
+      customer_company VARCHAR(255),
+      title VARCHAR(255) NOT NULL,
+      status VARCHAR(50) DEFAULT 'draft',
+      total_amount DECIMAL(18,2),
+      valid_until DATE,
+      notes TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  try {
+    await pool.query(query);
+    console.log('"quotes" table created or already exists.');
+  } catch (err) {
+    console.error('Error creating "quotes" table:', err);
+  }
+};
+
+// 견적 항목 테이블 생성
+const createQuoteItemsTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS quote_items (
+      id SERIAL PRIMARY KEY,
+      quote_id INTEGER NOT NULL,
+      product_id INTEGER,
+      product_name VARCHAR(255) NOT NULL,
+      product_description TEXT,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      unit_price DECIMAL(15,2) NOT NULL,
+      total_price DECIMAL(18,2) NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `;
+  try {
+    await pool.query(query);
+    console.log('"quote_items" table created or already exists.');
+  } catch (err) {
+    console.error('Error creating "quote_items" table:', err);
+  }
+};
+
 const setupAllTables = async () => {
   await createAccessRequestsTable();
   await createNoticesTable();
@@ -176,6 +249,9 @@ const setupAllTables = async () => {
   await createTicketFilesTable();
   await createTicketRepliesTable();
   await createTicketReplyFilesTable();
+  await createProductsTable();
+  await createQuotesTable();
+  await createQuoteItemsTable();
 
   // Add 'size' column to tables if they don't exist
   try {
@@ -183,6 +259,29 @@ const setupAllTables = async () => {
     await addColumnIfNotExists('ticket_reply_files', 'size', 'INTEGER');
   } catch (err) {
     console.error('Error updating table schemas:', err);
+  }
+
+  // Update decimal precision for price fields
+  try {
+    await pool.query('ALTER TABLE products ALTER COLUMN base_price TYPE DECIMAL(15,2)');
+    console.log('Updated products.base_price precision');
+  } catch (err) {
+    console.log('Products table base_price column already updated or does not exist');
+  }
+
+  try {
+    await pool.query('ALTER TABLE quotes ALTER COLUMN total_amount TYPE DECIMAL(18,2)');
+    console.log('Updated quotes.total_amount precision');
+  } catch (err) {
+    console.log('Quotes table total_amount column already updated or does not exist');
+  }
+
+  try {
+    await pool.query('ALTER TABLE quote_items ALTER COLUMN unit_price TYPE DECIMAL(15,2)');
+    await pool.query('ALTER TABLE quote_items ALTER COLUMN total_price TYPE DECIMAL(18,2)');
+    console.log('Updated quote_items price columns precision');
+  } catch (err) {
+    console.log('Quote_items table price columns already updated or do not exist');
   }
 };
 

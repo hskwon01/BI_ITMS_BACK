@@ -1,0 +1,222 @@
+const express = require('express');
+const router = express.Router();
+const { verifyToken, requireAdmin, requireTeam } = require('../middleware/auth');
+const { 
+  listQuotes, 
+  getQuoteById, 
+  createQuote, 
+  updateQuote, 
+  deleteQuote,
+  addQuoteItem,
+  updateQuoteItem,
+  deleteQuoteItem
+} = require('../models/quoteModel');
+
+// 견적 목록 조회
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const { limit = 20, offset = 0, status = '', search = '' } = req.query;
+    const user = req.user;
+    
+    // 일반 사용자는 자신의 견적만, 관리자/팀은 모든 견적 조회 가능
+    const customer_id = (user.role === 'admin' || user.role === 'itsm_team') ? null : user.id;
+    
+    const result = await listQuotes({ 
+      limit: Number(limit), 
+      offset: Number(offset), 
+      customer_id,
+      status,
+      search
+    });
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 목록 조회 실패' });
+  }
+});
+
+// 견적 상세 조회
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 일반 사용자는 자신의 견적만 조회 가능
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '접근 권한이 없습니다.' });
+    }
+    
+    res.json(quote);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 조회 실패' });
+  }
+});
+
+// 견적 생성
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { title, valid_until, notes, customer_name, customer_email, customer_company } = req.body;
+    
+    if (!title) {
+      return res.status(400).json({ message: '제목은 필수입니다.' });
+    }
+
+    const user = req.user;
+    const quote = await createQuote({ 
+      customer_id: user.id,
+      customer_name: customer_name || user.name,
+      customer_email: customer_email || user.email,
+      customer_company: customer_company || user.company || '',
+      title,
+      valid_until,
+      notes
+    });
+    
+    res.status(201).json(quote);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 생성 실패' });
+  }
+});
+
+// 견적 수정
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 일반 사용자는 자신의 견적만, 관리자/팀은 모든 견적 수정 가능
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '수정 권한이 없습니다.' });
+    }
+
+    const { title, status, valid_until, notes } = req.body;
+    const updatedQuote = await updateQuote(req.params.id, { title, status, valid_until, notes });
+    
+    res.json(updatedQuote);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 수정 실패' });
+  }
+});
+
+// 견적 삭제
+router.delete('/:id', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 일반 사용자는 자신의 견적만, 관리자/팀은 모든 견적 삭제 가능
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '삭제 권한이 없습니다.' });
+    }
+
+    await deleteQuote(req.params.id);
+    res.json({ message: '견적이 삭제되었습니다.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 삭제 실패' });
+  }
+});
+
+// 견적 항목 추가
+router.post('/:id/items', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 권한 확인
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '권한이 없습니다.' });
+    }
+
+    const { product_id, product_name, product_description, quantity, unit_price } = req.body;
+    
+    if (!product_name || !quantity || !unit_price) {
+      return res.status(400).json({ message: '제품명, 수량, 단가는 필수입니다.' });
+    }
+
+    if (quantity <= 0 || unit_price < 0) {
+      return res.status(400).json({ message: '수량은 1 이상, 단가는 0 이상이어야 합니다.' });
+    }
+
+    const item = await addQuoteItem({ 
+      quote_id: req.params.id,
+      product_id,
+      product_name,
+      product_description,
+      quantity: Number(quantity),
+      unit_price: Number(unit_price)
+    });
+    
+    res.status(201).json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 항목 추가 실패' });
+  }
+});
+
+// 견적 항목 수정
+router.put('/:id/items/:itemId', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 권한 확인
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '권한이 없습니다.' });
+    }
+
+    const { quantity, unit_price, product_description } = req.body;
+
+    if (quantity !== undefined && quantity <= 0) {
+      return res.status(400).json({ message: '수량은 1 이상이어야 합니다.' });
+    }
+
+    if (unit_price !== undefined && unit_price < 0) {
+      return res.status(400).json({ message: '단가는 0 이상이어야 합니다.' });
+    }
+
+    const item = await updateQuoteItem(req.params.itemId, { 
+      quantity: quantity ? Number(quantity) : undefined,
+      unit_price: unit_price ? Number(unit_price) : undefined,
+      product_description
+    });
+    
+    if (!item) return res.status(404).json({ message: '견적 항목을 찾을 수 없습니다.' });
+    res.json(item);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 항목 수정 실패' });
+  }
+});
+
+// 견적 항목 삭제
+router.delete('/:id/items/:itemId', verifyToken, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    
+    const user = req.user;
+    // 권한 확인
+    if (user.role !== 'admin' && user.role !== 'itsm_team' && quote.customer_id !== user.id) {
+      return res.status(403).json({ message: '권한이 없습니다.' });
+    }
+
+    const item = await deleteQuoteItem(req.params.itemId);
+    if (!item) return res.status(404).json({ message: '견적 항목을 찾을 수 없습니다.' });
+    
+    res.json({ message: '견적 항목이 삭제되었습니다.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 항목 삭제 실패' });
+  }
+});
+
+module.exports = router;
