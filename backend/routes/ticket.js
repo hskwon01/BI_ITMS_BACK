@@ -340,7 +340,7 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     for (const file of files) {
       try {
         const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'ticket-replies',
+          folder: 'ticket_reply_files',
           resource_type: 'auto'
         });
 
