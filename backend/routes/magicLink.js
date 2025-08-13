@@ -14,7 +14,7 @@ const {
   getRequestByValidToken,
   invalidateToken,
 } = require('../models/magicLinkRequestModel');
-const { sendMagicLinkEmail, sendAdminNewRequestNotification } = require('../config/email');
+const { sendMagicLinkEmail, sendAdminNewRequestNotification, sendAccessRequestRejectionEmail } = require('../config/email');
 const { getAdminEmails, getUserByEmail, createMagicUser } = require('../models/userModel');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 
@@ -133,9 +133,13 @@ router.post('/admin/requests/:id/reject', verifyToken, requireAdmin, async (req,
     if (!rejectedRequest) {
       return res.status(404).json({ message: '요청을 찾을 수 없습니다.' });
     }
-    res.json({ message: '사용자 접근 요청이 거부되었습니다.' });
+
+    // 사용자에게 거절 알림 이메일 발송
+    await sendAccessRequestRejectionEmail(rejectedRequest.email, rejectedRequest.name);
+
+    res.json({ message: '사용자 접근 요청이 거부되었고, 거절 알림 이메일이 발송되었습니다.' });
   } catch (err) {
-    console.error(err);
+    console.error('거부 처리 및 이메일 발송 오류:', err);
     res.status(500).json({ error: '서버 오류가 발생했습니다.' });
   }
 });
