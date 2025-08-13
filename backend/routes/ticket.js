@@ -260,7 +260,7 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
     params.push(urgency);
   }
   if (keyword) {
-    query += ` AND (t.title ILIKE $${index++} OR u.name ILIKE $${index++} OR a.name ILIKE ${index++})`;
+    query += ` AND (t.title ILIKE $${index++} OR u.name ILIKE $${index++} OR a.name ILIKE $${index++})`;
     params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
   }
 
