@@ -22,7 +22,7 @@ const sendVerificationEmail = async (email, verificationCode) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: '[ITSM] 이메일 인증 코드',
+    subject: '[BI ITSM] 이메일 인증 코드',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2d3652; text-align: center;">ITSM 이메일 인증</h2>
@@ -61,13 +61,13 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: adminEmails.join(', '),
-    subject: '[ITSM] 새로운 사용자 승인 요청',
+    subject: '[BI ITSM] 새로운 사용자 승인 요청',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2d3652; text-align: center;">새로운 사용자 승인 요청</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            새로운 사용자가 ITSM에 가입했습니다. 승인 처리가 필요합니다.
+            새로운 사용자가 ITSM 에 가입했습니다. <strong>승인 처리</strong>가 필요합니다.
           </p>
           <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
             <h3 style="color: #2d3652; margin: 0 0 15px 0;">사용자 정보</h3>
@@ -94,6 +94,12 @@ const sendAdminApprovalNotification = async (adminEmails, newUser) => {
             <p style="color: #2d3652; font-size: 14px; margin: 0;">
               <strong>관리자 페이지</strong>에서 사용자 <strong>승인/거부</strong>를 처리할 수 있습니다.
             </p>
+          </div>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/users" 
+               style="background-color: #2d3652; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                사용자 관리 페이지로 이동
+            </a>
           </div>
         </div>
         <p style="color: #7b8190; font-size: 12px; text-align: center;">
@@ -314,7 +320,7 @@ const sendTicketStatusUpdateToCustomer = async (ticketData, customerEmail) => {
         <h2 style="color: #2d3652; text-align: center;">티켓 상태 변경 알림</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            안녕하세요, 고객님.
+            안녕하세요, ${ticketData.customer_name}님.
           </p>
           <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
             회원님의 티켓 <strong>#<span style="color: #7c83fd;">${ticketData.ticketId}</span> - ${ticketData.title}</strong>의 상태가
@@ -384,7 +390,7 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
         <h2 style="color: #2d3652; text-align: center;">티켓 종결 알림</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            안녕하세요.
+            안녕하세요, ${ticketData.customer_name}님.
           </p>
           <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
             기술 지원 티켓 <strong>#<span style="color: #7c83fd;">${ticketData.ticketId}</span> - ${ticketData.title}</strong>이(가)
@@ -451,7 +457,7 @@ const sendMagicLinkEmail = async (email, token) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
-    subject: '[ITSM] 비밀번호 없이 로그인',
+    subject: '[BI ITSM] 로그인 승인 및 링크 안내',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2d3652; text-align: center;">ITSM 로그인 링크</h2>
@@ -490,13 +496,13 @@ const sendAdminNewRequestNotification = async (adminEmails, newRequest) => {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: adminEmails.join(', '),
-    subject: '[ITSM] 새로운 접근 요청',
+    subject: '[BI ITSM] 새로운 접근 요청',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2d3652; text-align: center;">새로운 사용자 접근 요청</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
-            새로운 사용자가 비밀번호 없는 로그인을 요청했습니다. 승인 처리가 필요합니다.
+            새로운 사용자가 비밀번호 없는 로그인을 요청했습니다. <strong>승인 처리</strong>가 필요합니다.
           </p>
           <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0;">
             <h3 style="color: #2d3652; margin: 0 0 15px 0;">요청자 정보</h3>
@@ -515,10 +521,15 @@ const sendAdminNewRequestNotification = async (adminEmails, newRequest) => {
               </tr>
             </table>
           </div>
+          <div style="background: #e6ffe6; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #38a169;">
+            <p style="color: #2d3652; font-size: 14px; margin: 0;">
+              <strong>관리자 페이지</strong>에서 접근 요청을 <strong>승인/거부</strong>할 수 있습니다.
+            </p>
+          </div>
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?next=%2Fadmin%2Faccess-requests" 
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/access-requests" 
                style="background-color: #2d3652; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
-                승인 페이지로 이동
+                접근 요청 관리 페이지로 이동
             </a>
           </div>
         </div>
@@ -538,6 +549,52 @@ const sendAdminNewRequestNotification = async (adminEmails, newRequest) => {
   }
 };
 
+// 사용자에게 접근 요청 거절 알림 메일 발송 함수
+const sendAccessRequestRejectionEmail = async (email, name) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: '[BI ITSM] 접근 요청 거절 안내',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #2d3652; text-align: center;">접근 요청 거절 안내</h2>
+        <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
+            안녕하세요, <strong>${name}</strong>님!
+          </p>
+          <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
+            죄송합니다만, 회원님의 <strong style="color: #e53e3e;">ITSM 접근 요청이 거절</strong>되었습니다.
+            <br />
+            추가 문의사항이 있으시면 ITSM 지원팀에 연락해 주시기 바랍니다.
+          </p>
+          <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">
+            <p style="color: #856404; font-size: 14px; margin: 0;">
+              <strong>문의사항</strong>이 있으시면 언제든지 ITSM 지원팀에 연락해 주세요.
+            </p>
+          </div>
+          <div style="text-align: center; margin: 25px 0;">
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/request-access" 
+               style="background-color: #6c757d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
+                새로운 접근 요청하기
+            </a>
+          </div>
+        </div>
+        <p style="color: #7b8190; font-size: 12px; text-align: center;">
+          © 2025 ITSM. All rights reserved.
+        </p>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    return true;
+  } catch (error) {
+    console.error('Access request rejection email sending error:', error);
+    return false;
+  }
+};
+
 module.exports = {
   generateVerificationCode,
   sendVerificationEmail,
@@ -548,4 +605,5 @@ module.exports = {
   sendTicketClosedNotification,
   sendMagicLinkEmail,
   sendAdminNewRequestNotification,
+  sendAccessRequestRejectionEmail,
 };  
