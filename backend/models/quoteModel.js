@@ -63,9 +63,30 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       total: countRes.rows[0]?.total || 0 
     };
   } else {
+    // countQuery에서 파라미터 번호를 다시 매핑
+    let countParamsRemapped = [];
+    let countParamIndex = 1;
+    
+    if (customer_id !== null && customer_id !== undefined) {
+      countParamsRemapped.push(Number(customer_id));
+      countParamIndex++;
+    }
+    
+    if (status && status.trim() !== '') {
+      countParamsRemapped.push(status.trim());
+      countParamIndex++;
+    }
+    
+    if (search && search.trim() !== '') {
+      countParamsRemapped.push(`%${search.trim()}%`);
+      countParamIndex++;
+    }
+    
+    console.log('countParamsRemapped:', countParamsRemapped);
+    
     const [listRes, countRes] = await Promise.all([
       pool.query(listQuery, params),
-      pool.query(countQuery, countParams)
+      pool.query(countQuery, countParamsRemapped)
     ]);
     return { 
       items: listRes.rows, 
