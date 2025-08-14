@@ -63,30 +63,43 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       total: countRes.rows[0]?.total || 0 
     };
   } else {
-    // countQuery에서 파라미터 번호를 다시 매핑
+    // countQuery용 WHERE 조건과 파라미터를 별도로 생성
+    let countWhereConditions = [];
     let countParamsRemapped = [];
     let countParamIndex = 1;
     
     if (customer_id !== null && customer_id !== undefined) {
+      countWhereConditions.push(`customer_id = $${countParamIndex}`);
       countParamsRemapped.push(Number(customer_id));
       countParamIndex++;
     }
     
     if (status && status.trim() !== '') {
+      countWhereConditions.push(`status = $${countParamIndex}`);
       countParamsRemapped.push(status.trim());
       countParamIndex++;
     }
     
     if (search && search.trim() !== '') {
+      countWhereConditions.push(`(title ILIKE $${countParamIndex} OR customer_name ILIKE $${countParamIndex} OR customer_company ILIKE $${countParamIndex})`);
       countParamsRemapped.push(`%${search.trim()}%`);
       countParamIndex++;
     }
     
+    const countWhereClause = countWhereConditions.length > 0 ? `WHERE ${countWhereConditions.join(' AND ')}` : '';
+    
+    const countQueryRemapped = `
+      SELECT COUNT(*)::int AS total
+      FROM quotes
+      ${countWhereClause}
+    `;
+    
+    console.log('countQueryRemapped:', countQueryRemapped);
     console.log('countParamsRemapped:', countParamsRemapped);
     
     const [listRes, countRes] = await Promise.all([
       pool.query(listQuery, params),
-      pool.query(countQuery, countParamsRemapped)
+      pool.query(countQueryRemapped, countParamsRemapped)
     ]);
     return { 
       items: listRes.rows, 
