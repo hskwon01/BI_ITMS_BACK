@@ -224,8 +224,15 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { status = '', limit = 20, offset = 0 } = req.query;
     
-    // status가 빈 문자열이면 'pending'으로 설정, 아니면 전달받은 값 사용
-    const statusFilter = status === '' ? 'pending' : status;
+    // status가 'all'이면 빈 문자열로, 빈 문자열이면 'pending'으로, 아니면 전달받은 값 사용
+    let statusFilter;
+    if (status === 'all') {
+      statusFilter = ''; // 전체 조회
+    } else if (status === '') {
+      statusFilter = 'pending'; // 기본값
+    } else {
+      statusFilter = status; // 특정 상태
+    }
     
     console.log('견적 요청 목록 조회 파라미터:', { limit, offset, status: statusFilter, customer_id: null });
     
