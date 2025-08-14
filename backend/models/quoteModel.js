@@ -44,7 +44,8 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
     ${whereClause}
   `;
 
-  const countParams = params.slice(2); // limit, offset 제외
+  // countParams가 빈 배열이면 undefined로 설정
+  const countParams = params.length > 2 ? params.slice(2) : undefined;
 
   const [listRes, countRes] = await Promise.all([
     pool.query(listQuery, params),

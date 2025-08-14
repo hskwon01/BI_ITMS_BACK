@@ -22,15 +22,15 @@ router.get('/', verifyToken, async (req, res) => {
     const customer_id = (user.role === 'admin' || user.role === 'itsm_team') ? null : user.id;
     
     const result = await listQuotes({ 
-      limit: Number(limit), 
-      offset: Number(offset), 
+      limit: Number(limit) || 20, 
+      offset: Number(offset) || 0, 
       customer_id,
-      status,
-      search
+      status: status || '',
+      search: search || ''
     });
     res.json(result);
   } catch (err) {
-    console.error(err);
+    console.error('견적 목록 조회 에러:', err);
     res.status(500).json({ error: '견적 목록 조회 실패' });
   }
 });
@@ -227,16 +227,18 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
     // status가 빈 문자열이면 'pending'으로 설정, 아니면 전달받은 값 사용
     const statusFilter = status === '' ? 'pending' : status;
     
+    console.log('견적 요청 목록 조회 파라미터:', { limit, offset, status: statusFilter, customer_id: null });
+    
     const result = await listQuotes({ 
-      limit: Number(limit), 
-      offset: Number(offset), 
+      limit: Number(limit) || 20, 
+      offset: Number(offset) || 0, 
       status: statusFilter,
       customer_id: null // 모든 고객의 견적
     });
     
     res.json(result);
   } catch (err) {
-    console.error(err);
+    console.error('견적 요청 목록 조회 에러:', err);
     res.status(500).json({ error: '견적 요청 목록 조회 실패' });
   }
 });
