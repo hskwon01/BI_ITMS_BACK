@@ -22,7 +22,7 @@ router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
       pool.query(`SELECT COUNT(*) FROM tickets ${where} AND status = '접수'`, params),
       pool.query(`SELECT COUNT(*) FROM tickets ${where} AND status = '진행중'`, params),
       pool.query(`SELECT COUNT(*) FROM tickets ${where} AND status = '답변 완료'`, params),
-      pool.query(`SELECT COUNT(*) FROM tickets ${where} AND status = '종결'`, params),
+      pool.query(`SELECT COUNT(*) FROM tickets ${where} AND status = '종료'`, params),
       pool.query(`SELECT COUNT(*) FROM tickets ${where}`, params),
       pool.query(`SELECT COUNT(*) FROM users WHERE role = 'customer'`),
       pool.query(`SELECT COUNT(*) FROM users WHERE role = 'admin'`)
@@ -32,7 +32,7 @@ router.get('/stats', verifyToken, requireAdmin, async (req, res) => {
       접수: result[0].rows[0].count,
       진행중: result[1].rows[0].count,
       답변완료: result[2].rows[0].count,
-      종결: result[3].rows[0].count,
+      종료: result[3].rows[0].count,
       전체티켓: result[4].rows[0].count,
       고객수: result[5].rows[0].count,
       관리자수: result[6].rows[0].count,
@@ -74,7 +74,7 @@ router.get('/stats/trends', verifyToken, requireAdmin, async (req, res) => {
   }
 });
 
-// SLA 자동 종결 처리 기능
+// SLA 자동 종료 처리 기능
 router.post('/auto-close', verifyToken, requireAdmin, async (req, res) => {
   try {
     // 1. 답변 완료 상태의 티켓
@@ -98,23 +98,23 @@ router.post('/auto-close', verifyToken, requireAdmin, async (req, res) => {
       const lastReply = replyRes.rows[0];
       if (!lastReply) continue;
 
-      // 2. 마지막 댓글이 관리자이고 7일 지났으면 종결 처리
+      // 2. 마지막 댓글이 관리자이고 7일 지났으면 종료 처리
       const isAdmin = lastReply.role === 'admin';
       const isOld = new Date() - new Date(lastReply.created_at) > 7 * 24 * 60 * 60 * 1000;
 
       if (isAdmin && isOld) {
         await pool.query(
-          `UPDATE tickets SET status = '종결' WHERE id = $1`,
+          `UPDATE tickets SET status = '종료' WHERE id = $1`,
           [ticket.id]
         );
         closed++;
       }
     }
 
-    res.json({ message: `${closed}건 자동 종결 처리됨` });
+    res.json({ message: `${closed}건 자동 종료 처리됨` });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: '자동 종결 처리 실패' });
+    res.status(500).json({ error: '자동 종료 처리 실패' });
   }
 });
 module.exports = router;
