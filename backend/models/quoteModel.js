@@ -47,6 +47,7 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
   console.log('listQuotes 파라미터:', { limit, offset, customer_id, status, search });
   console.log('SQL 쿼리:', { listQuery, countQuery });
   console.log('파라미터 배열:', params);
+  console.log('WHERE 조건 개수:', whereConditions.length);
 
   // countParams가 빈 배열이면 undefined로 설정
   const countParams = params.length > 2 ? params.slice(2) : undefined;
@@ -58,6 +59,11 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       pool.query(listQuery, params),
       pool.query(countQuery)
     ]);
+    
+    console.log('WHERE 조건 없음 - 조회된 견적 개수:', listRes.rows.length);
+    console.log('WHERE 조건 없음 - 전체 견적 개수:', countRes.rows[0]?.total || 0);
+    console.log('WHERE 조건 없음 - 첫 번째 견적 데이터:', listRes.rows[0]);
+    
     return { 
       items: listRes.rows, 
       total: countRes.rows[0]?.total || 0 
@@ -101,6 +107,11 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       pool.query(listQuery, params),
       pool.query(countQueryRemapped, countParamsRemapped)
     ]);
+    
+    console.log('조회된 견적 개수:', listRes.rows.length);
+    console.log('전체 견적 개수:', countRes.rows[0]?.total || 0);
+    console.log('첫 번째 견적 데이터:', listRes.rows[0]);
+    
     return { 
       items: listRes.rows, 
       total: countRes.rows[0]?.total || 0 

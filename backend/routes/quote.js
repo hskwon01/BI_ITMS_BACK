@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { verifyToken, requireAdmin, requireTeam } = require('../middleware/auth');
+const pool = require('../config/db');
 const { 
   listQuotes, 
   getQuoteById, 
@@ -236,6 +237,10 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
     
     console.log('견적 요청 목록 조회 파라미터:', { limit, offset, status: statusFilter, customer_id: null });
     
+    // 데이터베이스에 있는 모든 견적 확인
+    const allQuotesCheck = await pool.query('SELECT id, status, customer_name, title FROM quotes ORDER BY created_at DESC LIMIT 10');
+    console.log('데이터베이스에 있는 견적들:', allQuotesCheck.rows);
+    
     const result = await listQuotes({ 
       limit: Number(limit) || 20, 
       offset: Number(offset) || 0, 
@@ -243,6 +248,7 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
       customer_id: null // 모든 고객의 견적
     });
     
+    console.log('최종 결과:', result);
     res.json(result);
   } catch (err) {
     console.error('견적 요청 목록 조회 에러:', err);
