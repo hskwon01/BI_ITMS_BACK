@@ -44,18 +44,34 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
     ${whereClause}
   `;
 
+  console.log('listQuotes 파라미터:', { limit, offset, customer_id, status, search });
+  console.log('SQL 쿼리:', { listQuery, countQuery });
+  console.log('파라미터 배열:', params);
+
   // countParams가 빈 배열이면 undefined로 설정
   const countParams = params.length > 2 ? params.slice(2) : undefined;
+  console.log('countParams:', countParams);
 
-  const [listRes, countRes] = await Promise.all([
-    pool.query(listQuery, params),
-    pool.query(countQuery, countParams)
-  ]);
-
-  return { 
-    items: listRes.rows, 
-    total: countRes.rows[0]?.total || 0 
-  };
+  // WHERE 조건이 없으면 파라미터 없이 쿼리 실행
+  if (whereConditions.length === 0) {
+    const [listRes, countRes] = await Promise.all([
+      pool.query(listQuery, params),
+      pool.query(countQuery)
+    ]);
+    return { 
+      items: listRes.rows, 
+      total: countRes.rows[0]?.total || 0 
+    };
+  } else {
+    const [listRes, countRes] = await Promise.all([
+      pool.query(listQuery, params),
+      pool.query(countQuery, countParams)
+    ]);
+    return { 
+      items: listRes.rows, 
+      total: countRes.rows[0]?.total || 0 
+    };
+  }
 };
 
 const getQuoteById = async (id) => {
