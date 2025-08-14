@@ -494,7 +494,7 @@ router.patch('/:id/status', verifyToken, requireTeam, async (req, res) => {
   const ticketId = req.params.id;
   const { status } = req.body;
 
-  const allowed = ['접수', '진행중', '답변 완료', '종결'];
+  const allowed = ['접수', '진행중', '답변 완료', '종료'];
   if (!allowed.includes(status)) {
     return res.status(400).json({ message: '유효하지 않은 상태입니다.' });
   }
@@ -533,8 +533,8 @@ router.patch('/:id/status', verifyToken, requireTeam, async (req, res) => {
       }
     }
     
-    // 상태가 '종결'로 변경되었을 때 고객, 담당자, 관리자에게 알림 메일 발송
-    if (status === '종결') {
+    // 상태가 '종료'로 변경되었을 때 고객, 담당자, 관리자에게 알림 메일 발송
+    if (status === '종료') {
       try {
         // 1. 티켓의 상세 정보 조회 (고객명, 담당자명, 담당자 이메일 등)
         const ticketDetailsRes = await pool.query(
@@ -571,11 +571,11 @@ router.patch('/:id/status', verifyToken, requireTeam, async (req, res) => {
             customer_name: ticketDetails.customer_name,
             assignee_name: ticketDetails.assignee_name,
           }, recipientEmails);
-          console.log('티켓 종결 알림 메일 발송 완료');
+          console.log('티켓 종료 알림 메일 발송 완료');
         }
 
       } catch (emailError) {
-        console.error('티켓 종결 알림 메일 발송 실패:', emailError);
+        console.error('티켓 종료 알림 메일 발송 실패:', emailError);
       }
     }
 
