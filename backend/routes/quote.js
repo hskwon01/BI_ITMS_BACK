@@ -224,11 +224,13 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
   try {
     const { status = '', limit = 20, offset = 0 } = req.query;
     
-    // status가 'pending'인 견적만 조회 (요청 상태)
+    // status가 빈 문자열이면 'pending'으로 설정, 아니면 전달받은 값 사용
+    const statusFilter = status === '' ? 'pending' : status;
+    
     const result = await listQuotes({ 
       limit: Number(limit), 
       offset: Number(offset), 
-      status: status || 'pending',
+      status: statusFilter,
       customer_id: null // 모든 고객의 견적
     });
     

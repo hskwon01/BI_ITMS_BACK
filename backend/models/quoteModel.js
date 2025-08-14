@@ -2,22 +2,26 @@ const pool = require('../config/db');
 
 const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status = '', search = '' } = {}) => {
   let whereConditions = [];
-  let params = [limit, offset];
-  let paramCount = 2;
+  let params = [];
+  let paramCount = 0;
 
-  if (customer_id) {
+  // limit과 offset을 먼저 추가
+  params.push(Number(limit), Number(offset));
+  paramCount = 2;
+
+  if (customer_id !== null && customer_id !== undefined) {
     paramCount++;
     whereConditions.push(`customer_id = $${paramCount}`);
-    params.push(customer_id);
+    params.push(Number(customer_id));
   }
 
-  if (status && status.trim()) {
+  if (status && status.trim() !== '') {
     paramCount++;
     whereConditions.push(`status = $${paramCount}`);
     params.push(status.trim());
   }
 
-  if (search && search.trim()) {
+  if (search && search.trim() !== '') {
     paramCount++;
     whereConditions.push(`(title ILIKE $${paramCount} OR customer_name ILIKE $${paramCount} OR customer_company ILIKE $${paramCount})`);
     params.push(`%${search.trim()}%`);
