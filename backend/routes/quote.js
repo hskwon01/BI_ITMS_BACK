@@ -219,6 +219,82 @@ router.delete('/:id/items/:itemId', verifyToken, async (req, res) => {
   }
 });
 
+// 관리자용: 견적 요청 목록 조회
+router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { status = '', limit = 20, offset = 0 } = req.query;
+    
+    // status가 'pending'인 견적만 조회 (요청 상태)
+    const result = await listQuotes({ 
+      limit: Number(limit), 
+      offset: Number(offset), 
+      status: status || 'pending',
+      customer_id: null // 모든 고객의 견적
+    });
+    
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 요청 목록 조회 실패' });
+  }
+});
+
+// 관리자용: 견적 요청 승인
+router.post('/admin/requests/:id/approve', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const quote = await getQuoteById(req.params.id);
+    if (!quote) {
+      return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    }
+
+    if (quote.status !== 'pending') {
+      return res.status(400).json({ message: '승인 대기 상태의 견적만 승인할 수 있습니다.' });
+    }
+
+    const updatedQuote = await updateQuote(req.params.id, { 
+      status: 'approved',
+      notes: quote.notes ? `${quote.notes}\n\n[관리자 승인] ${new Date().toLocaleString('ko-KR')}` : `[관리자 승인] ${new Date().toLocaleString('ko-KR')}`
+    });
+
+    res.json({ 
+      message: '견적 요청이 승인되었습니다.',
+      quote: updatedQuote
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 요청 승인 실패' });
+  }
+});
+
+// 관리자용: 견적 요청 거부
+router.post('/admin/requests/:id/reject', verifyToken, requireAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const quote = await getQuoteById(req.params.id);
+    
+    if (!quote) {
+      return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
+    }
+
+    if (quote.status !== 'pending') {
+      return res.status(400).json({ message: '승인 대기 상태의 견적만 거부할 수 있습니다.' });
+    }
+
+    const updatedQuote = await updateQuote(req.params.id, { 
+      status: 'rejected',
+      notes: quote.notes ? `${quote.notes}\n\n[관리자 거부] ${reason || '사유 없음'} - ${new Date().toLocaleString('ko-KR')}` : `[관리자 거부] ${reason || '사유 없음'} - ${new Date().toLocaleString('ko-KR')}`
+    });
+
+    res.json({ 
+      message: '견적 요청이 거부되었습니다.',
+      quote: updatedQuote
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: '견적 요청 거부 실패' });
+  }
+});
+
 module.exports = router;
 
 
