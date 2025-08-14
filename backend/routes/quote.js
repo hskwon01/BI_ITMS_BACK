@@ -58,7 +58,7 @@ router.get('/:id', verifyToken, async (req, res) => {
 // 견적 생성
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { title, valid_until, notes, customer_name, customer_email, customer_company } = req.body;
+    const { title, valid_until, notes, customer_name, customer_email, customer_company, status } = req.body;
     
     if (!title) {
       return res.status(400).json({ message: '제목은 필수입니다.' });
@@ -71,6 +71,7 @@ router.post('/', verifyToken, async (req, res) => {
       customer_email: customer_email || user.email,
       customer_company: customer_company || user.company || '',
       title,
+      status,
       valid_until,
       notes
     });

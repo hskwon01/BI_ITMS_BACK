@@ -135,11 +135,11 @@ const getQuoteById = async (id) => {
   return quote;
 };
 
-const createQuote = async ({ customer_id, customer_name, customer_email, customer_company, title, valid_until, notes }) => {
+const createQuote = async ({ customer_id, customer_name, customer_email, customer_company, title, status = 'pending', valid_until, notes }) => {
   const res = await pool.query(
     `INSERT INTO quotes (customer_id, customer_name, customer_email, customer_company, title, status, valid_until, notes)
-     VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7) RETURNING *`,
-    [customer_id, customer_name, customer_email, customer_company, title, valid_until, notes]
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [customer_id, customer_name, customer_email, customer_company, title, status, valid_until, notes]
   );
   return res.rows[0];
 };
