@@ -127,7 +127,7 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
 // 견적 항목 추가
 router.post('/:id/items', verifyToken, async (req, res) => {
-  try {
+  try {    
     const quote = await getQuoteById(req.params.id);
     if (!quote) return res.status(404).json({ message: '견적을 찾을 수 없습니다.' });
     
@@ -139,7 +139,7 @@ router.post('/:id/items', verifyToken, async (req, res) => {
 
     const { product_id, product_name, product_description, quantity, unit_price } = req.body;
     
-    if (!product_name || !quantity || !unit_price) {
+    if (!product_name || !quantity || unit_price === undefined || unit_price === null) {
       return res.status(400).json({ message: '제품명, 수량, 단가는 필수입니다.' });
     }
 
@@ -158,7 +158,6 @@ router.post('/:id/items', verifyToken, async (req, res) => {
     
     res.status(201).json(item);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ error: '견적 항목 추가 실패' });
   }
 });
@@ -236,23 +235,14 @@ router.get('/admin/requests', verifyToken, requireAdmin, async (req, res) => {
       statusFilter = status; // 특정 상태
     }
     
-    console.log('견적 요청 목록 조회 파라미터:', { limit, offset, status: statusFilter, customer_id: null });
-    
-    // 데이터베이스에 있는 모든 견적 확인
-    const allQuotesCheck = await pool.query('SELECT id, status, customer_name, title FROM quotes ORDER BY created_at DESC LIMIT 10');
-    console.log('데이터베이스에 있는 견적들:', allQuotesCheck.rows);
-    
     const result = await listQuotes({ 
       limit: Number(limit) || 20, 
       offset: Number(offset) || 0, 
       status: statusFilter,
       customer_id: null // 모든 고객의 견적
     });
-    
-    console.log('최종 결과:', result);
     res.json(result);
   } catch (err) {
-    console.error('견적 요청 목록 조회 에러:', err);
     res.status(500).json({ error: '견적 요청 목록 조회 실패' });
   }
 });

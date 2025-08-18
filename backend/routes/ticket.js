@@ -278,7 +278,6 @@ router.get('/', verifyToken, requireTeam, async (req, res) => {
 // 티켓 상세 정보 + 댓글 + 첨부파일
 router.get('/:id', verifyToken, async (req, res) => {
   const ticketId = req.params.id;
-  console.log('티켓 상세 조회 요청 - 티켓 ID:', ticketId);
 
   try {
     // 1. 티켓 정보 (등록자, 담당자 정보 포함)
@@ -302,10 +301,6 @@ router.get('/:id', verifyToken, async (req, res) => {
       [ticketId]
     );
     ticket.files = fileRes.rows;
-    
-    // 디버깅: 파일 정보 로그 출력
-    console.log('티켓 ID:', ticketId);
-    console.log('파일 정보:', ticket.files);
 
     // 3. 댓글 + 첨부파일
     const replies = await getRepliesByTicketId(ticketId);
@@ -445,13 +440,10 @@ router.post('/', verifyToken, upload.array('files', 5), async (req, res) => {
 
     // 파일 정보 저장
     const files = req.files || [];
-    console.log('업로드된 파일 수:', files.length);
-    console.log('업로드된 파일 정보:', files.map(f => ({ filename: f.filename, originalname: f.originalname })));
-    
+   
     for (const file of files) {
       const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8'); //PostgreSql 한글 깨짐 처리
       const fileUrl = `uploads/${file.filename}`; // Corrected path
-      console.log('저장할 파일 URL:', fileUrl);
       await pool.query(
         `INSERT INTO ticket_files (ticket_id, url, originalname, public_id)
          VALUES ($1, $2, $3, $4)`,
