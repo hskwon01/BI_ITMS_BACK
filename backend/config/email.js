@@ -380,21 +380,21 @@ const sendTicketStatusUpdateToCustomer = async (ticketData, customerEmail) => {
   }
 };
 
-    // 고객 및 관계자에게 티켓 종결 알림 메일 발송 함수
+    // 고객 및 관계자에게 티켓 종료 알림 메일 발송 함수
 const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
   try {
-    const subject = `[BI ITSM] 티켓 종결 알림 - #${ticketData.ticketId} ${ticketData.title}`;
+    const subject = `[BI ITSM] 티켓 종료 알림 - #${ticketData.ticketId} ${ticketData.title}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2d3652; text-align: center;">티켓 종결 알림</h2>
+        <h2 style="color: #2d3652; text-align: center;">티켓 종료 알림</h2>
         <div style="background: #f6f8fc; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="color: #4a5568; font-size: 16px; margin-bottom: 20px;">
             안녕하세요, ${ticketData.customer_name}님.
           </p>
           <p style="color: #4a5568; font-size: 15px; line-height: 1.6;">
             기술 지원 티켓 <strong>#<span style="color: #7c83fd;">${ticketData.ticketId}</span> - ${ticketData.title}</strong>이(가)
-            <strong style="color: #dc3545;">'종결'</strong> 처리되었습니다.
+            <strong style="color: #dc3545;">'종료'</strong> 처리되었습니다.
           </p>
           <div style="background: #fff; padding: 20px; border-radius: 8px; border: 2px solid #e2e8f0; margin-top: 20px;">
             <h3 style="color: #2d3652; margin: 0 0 15px 0;">티켓 정보 요약</h3>
@@ -423,7 +423,7 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
           <div style="text-align: center; margin: 25px 0;">
             <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/my-tickets/${ticketData.ticketId}"
                style="background-color: #6c757d; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">
-                종결된 티켓 확인하기
+                종료된 티켓 확인하기
             </a>
           </div>
         </div>
@@ -441,11 +441,11 @@ const sendTicketClosedNotification = async (ticketData, recipientEmails) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('종결 알림 메일 전송 성공:', result.messageId);
+    console.log('종료 알림 메일 전송 성공:', result.messageId);
     return result;
 
   } catch (error) {
-    console.error('종결 알림 메일 전송 실패:', error);
+    console.error('종료 알림 메일 전송 실패:', error);
     throw error;
   }
 };
