@@ -44,14 +44,8 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
     ${whereClause}
   `;
 
-  console.log('listQuotes 파라미터:', { limit, offset, customer_id, status, search });
-  console.log('SQL 쿼리:', { listQuery, countQuery });
-  console.log('파라미터 배열:', params);
-  console.log('WHERE 조건 개수:', whereConditions.length);
-
   // countParams가 빈 배열이면 undefined로 설정
   const countParams = params.length > 2 ? params.slice(2) : undefined;
-  console.log('countParams:', countParams);
 
   // WHERE 조건이 없으면 파라미터 없이 쿼리 실행
   if (whereConditions.length === 0) {
@@ -59,10 +53,6 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       pool.query(listQuery, params),
       pool.query(countQuery)
     ]);
-    
-    console.log('WHERE 조건 없음 - 조회된 견적 개수:', listRes.rows.length);
-    console.log('WHERE 조건 없음 - 전체 견적 개수:', countRes.rows[0]?.total || 0);
-    console.log('WHERE 조건 없음 - 첫 번째 견적 데이터:', listRes.rows[0]);
     
     return { 
       items: listRes.rows, 
@@ -99,19 +89,12 @@ const listQuotes = async ({ limit = 20, offset = 0, customer_id = null, status =
       FROM quotes
       ${countWhereClause}
     `;
-    
-    console.log('countQueryRemapped:', countQueryRemapped);
-    console.log('countParamsRemapped:', countParamsRemapped);
-    
+  
     const [listRes, countRes] = await Promise.all([
       pool.query(listQuery, params),
       pool.query(countQueryRemapped, countParamsRemapped)
     ]);
-    
-    console.log('조회된 견적 개수:', listRes.rows.length);
-    console.log('전체 견적 개수:', countRes.rows[0]?.total || 0);
-    console.log('첫 번째 견적 데이터:', listRes.rows[0]);
-    
+   
     return { 
       items: listRes.rows, 
       total: countRes.rows[0]?.total || 0 
@@ -136,15 +119,21 @@ const getQuoteById = async (id) => {
 };
 
 const createQuote = async ({ customer_id, customer_name, customer_email, customer_company, title, status = 'pending', valid_until, notes }) => {
+  // valid_until이 빈 문자열이거나 null이면 null로 설정
+  const validUntilValue = valid_until && valid_until.trim() !== '' ? valid_until : null;
+  
   const res = await pool.query(
     `INSERT INTO quotes (customer_id, customer_name, customer_email, customer_company, title, status, valid_until, notes)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [customer_id, customer_name, customer_email, customer_company, title, status, valid_until, notes]
+    [customer_id, customer_name, customer_email, customer_company, title, status, validUntilValue, notes]
   );
   return res.rows[0];
 };
 
 const updateQuote = async (id, { title, status, valid_until, notes, total_amount }) => {
+  // valid_until이 빈 문자열이거나 null이면 null로 설정
+  const validUntilValue = valid_until && valid_until.trim() !== '' ? valid_until : null;
+  
   const res = await pool.query(
     `UPDATE quotes SET 
        title = COALESCE($2, title),
@@ -154,7 +143,7 @@ const updateQuote = async (id, { title, status, valid_until, notes, total_amount
        total_amount = COALESCE($6, total_amount),
        updated_at = NOW()
      WHERE id = $1 RETURNING *`,
-    [id, title, status, valid_until, notes, total_amount]
+    [id, title, status, validUntilValue, notes, total_amount]
   );
   return res.rows[0];
 };
@@ -169,18 +158,24 @@ const deleteQuote = async (id) => {
 
 // 견적 항목 관련 함수들
 const addQuoteItem = async ({ quote_id, product_id, product_name, product_description, quantity, unit_price }) => {
+  
   const total_price = quantity * unit_price;
   
-  const res = await pool.query(
-    `INSERT INTO quote_items (quote_id, product_id, product_name, product_description, quantity, unit_price, total_price)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [quote_id, product_id, product_name, product_description, quantity, unit_price, total_price]
-  );
-  
-  // 견적서 총액 업데이트
-  await updateQuoteTotalAmount(quote_id);
-  
-  return res.rows[0];
+  try {
+    const res = await pool.query(
+      `INSERT INTO quote_items (quote_id, product_id, product_name, product_description, quantity, unit_price, total_price)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [quote_id, product_id, product_name, product_description, quantity, unit_price, total_price]
+    );
+        
+    // 견적서 총액 업데이트
+    await updateQuoteTotalAmount(quote_id);
+    
+    return res.rows[0];
+  } catch (error) {
+    console.error('견적 항목 추가 실패:', error);
+    throw error;
+  }
 };
 
 const updateQuoteItem = async (id, { quantity, unit_price, product_description }) => {
