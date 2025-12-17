@@ -16,7 +16,6 @@ const fs = require('fs');
 const { createTicket, assignTicket } = require('../models/ticketModel');
 const { verifyToken, requireAdmin, requireTeam } = require('../middleware/auth');
 const { getRepliesByTicketId, addReply } = require('../models/replyModel');
-const cloudinary = require('../config/cloudinary');
 const { sendTicketNotificationToAdmin, sendTicketStatusUpdateToCustomer, sendTicketClosedNotification } = require('../config/email');
 
 // 담당자 배정/수정
@@ -41,9 +40,9 @@ router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async 
   const { ticket_files_id } = req.params;
 
   try {
-    // 1. 파일 정보 조회 (public_id 포함)
+    // 1. 파일 정보 조회
     const fileResult = await pool.query(
-      `SELECT public_id FROM ticket_files WHERE id = $1`,
+      `SELECT url FROM ticket_files WHERE id = $1`,
       [ticket_files_id]
     );
 
@@ -52,8 +51,8 @@ router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async 
     }
 
     const file = fileResult.rows[0];
-
-    // 2. Cloudinary에서 삭제
+    /*
+    // 2. Cloudinary에서 삭제 (로컬 or Cloudinary선택사항, 주석처리함)
     if (file.public_id) {
       try {
         await cloudinary.uploader.destroy(file.public_id);
@@ -61,6 +60,16 @@ router.delete('/files/ticket/:ticket_files_id', verifyToken, requireTeam, async 
         console.error('Cloudinary 삭제 실패:', cloudinaryErr);
         // Cloudinary 삭제 실패해도 DB는 삭제 진행
       }
+    }*/
+    // 2. 로컬 파일 삭제 (로컬 or Cloudinary선택사항)
+    try {
+      const filePath = path.join(file.url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (fileErr) {
+      console.error('로컬 파일 삭제 실패:', fileErr);
+      // 파일 삭제 실패해도 DB는 삭제 진행
     }
 
     // 3. DB에서 삭제
@@ -79,9 +88,9 @@ router.delete('/files/reply/:ticket_reply_files_id', verifyToken, async (req, re
   const userId = req.user.id;
 
   try {
-    // 1. 파일 정보 조회 (public_id 포함) 및 댓글 작성자 확인
+    // 1. 파일 정보 조회 및 댓글 작성자 확인
     const fileCheck = await pool.query(`
-      SELECT trf.public_id, r.author_id, r.id as reply_id 
+      SELECT trf.url, r.author_id, r.id as reply_id 
       FROM ticket_reply_files trf
       JOIN ticket_replies r ON trf.reply_id = r.id
       WHERE trf.id = $1
@@ -98,14 +107,15 @@ router.delete('/files/reply/:ticket_reply_files_id', verifyToken, async (req, re
       return res.status(403).json({ error: '삭제 권한이 없습니다.' });
     }
 
-    // 3. Cloudinary에서 삭제
-    if (file.public_id) {
-      try {
-        await cloudinary.uploader.destroy(file.public_id);
-      } catch (cloudinaryErr) {
-        console.error('Cloudinary 삭제 실패:', cloudinaryErr);
-        // Cloudinary 삭제 실패해도 DB는 삭제 진행
+    // 3. 로컬 파일 삭제
+    try {
+      const filePath = path.join(file.url);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
       }
+    } catch (fileErr) {
+      console.error('로컬 파일 삭제 실패:', fileErr);
+      // 파일 삭제 실패해도 DB는 삭제 진행
     }
 
     // 4. DB에서 삭제
@@ -330,29 +340,16 @@ router.post('/:id/replies', verifyToken, upload.array('files', 5), async (req, r
     );
     const replyId = replyRes.rows[0].id;
 
-    // Cloudinary에 파일 업로드 및 DB에 정보 저장
+    // 로컬 폴더에 저장된 파일 정보만 DB에 저장
     const files = req.files || [];
     for (const file of files) {
-      try {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'ticket_reply_files',
-          resource_type: 'auto'
-        });
-
-        const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-        await pool.query(
-          `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id, size)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [replyId, result.secure_url, fixedOriginalName, result.public_id, result.bytes]
-        );
-
-        // 로컬에 임시 저장된 파일 삭제
-        fs.unlinkSync(file.path);
-        
-      } catch (uploadError) {
-        console.error('Cloudinary 업로드 실패:', uploadError);
-        // 업로드 실패 시 이미 추가된 댓글은 유지하되, 에러 로깅
-      }
+      const fixedOriginalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+      const fileUrl = `uploads/${file.filename}`;
+      await pool.query(
+        `INSERT INTO ticket_reply_files (reply_id, url, originalname, public_id, size)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [replyId, fileUrl, fixedOriginalName, null, file.size]
+      );
     }
 
     res.status(201).json({ message: '댓글 등록 완료', reply_id: replyId });
