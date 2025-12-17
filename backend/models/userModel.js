@@ -3,8 +3,8 @@ const crypto = require('crypto');
 
 const createUser = async (email, hashedPassword, name, company) => {
   const result = await pool.query(
-    'INSERT INTO users (email, password, name, company_name) VALUES ($1, $2, $3, $4) RETURNING *',
-    [email, hashedPassword, name, company]
+    'INSERT INTO users (email, password, name, company_name, role) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [email, hashedPassword, name, company, 'customer']
   );
   return result.rows[0];
 };
@@ -70,7 +70,7 @@ const createMagicUser = async (email, name, company) => {
   const randomPassword = crypto.randomBytes(16).toString('hex');
   const result = await pool.query(
     'INSERT INTO users (email, name, company_name, is_approved, role, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-    [email, name, company, true, 'user', randomPassword] // is_approved를 true, role을 'user'로, 임의의 비밀번호 설정
+    [email, name, company, true, 'customer', randomPassword] // is_approved를 true, role을 'customer'로, 임의의 비밀번호 설정
   );
   return result.rows[0];
 };

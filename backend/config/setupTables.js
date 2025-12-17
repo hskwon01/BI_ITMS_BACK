@@ -23,6 +23,31 @@ const createAccessRequestsTable = async () => {
   }
 };
 
+// users 테이블 생성
+const createUsersTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password TEXT,
+      name VARCHAR(255),
+      company_name VARCHAR(255),
+      is_approved BOOLEAN DEFAULT false,
+      role VARCHAR(50) DEFAULT 'user',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
+  `;
+
+  try {
+    await pool.query(query);
+    console.log('"users" table created or already exists.');
+  } catch (err) {
+    console.error('Error creating "users" table:', err);
+  }
+};
+
 const createNoticesTable = async () => {
   const query = `
     CREATE TABLE IF NOT EXISTS notices (
@@ -153,6 +178,26 @@ const createTicketReplyFilesTable = async () => {
   }
 };
 
+// 티켓 읽음 상태 저장 테이블 생성
+const createTicketReadsTable = async () => {
+  const query = `
+    CREATE TABLE IF NOT EXISTS ticket_reads (
+      ticket_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      last_read_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (ticket_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS ticket_reads_ticket_id_idx ON ticket_reads(ticket_id);
+  `;
+
+  try {
+    await pool.query(query);
+    console.log('"ticket_reads" table created or already exists.');
+  } catch (err) {
+    console.error('Error creating "ticket_reads" table:', err);
+  }
+};
+
 const addColumnIfNotExists = async (tableName, columnName, columnDefinition) => {
   const checkQuery = `
     SELECT column_name 
@@ -242,7 +287,9 @@ const createQuoteItemsTable = async () => {
 };
 
 const setupAllTables = async () => {
+  await createUsersTable();
   await createAccessRequestsTable();
+  await createTicketReadsTable();
   await createNoticesTable();
   await createNoticeFilesTable();
   await createTicketsTable();
